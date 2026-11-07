@@ -1,8 +1,9 @@
 """
-Database layer for Colleague Zero.
-Supports Neon PostgreSQL (via DATABASE_URL in .env) out of the box,
-and automatically falls back to a local SQLite database (colleague_zero.db)
-until DATABASE_URL is configured.
+Database layer for Colleague Zero (Neon Serverless PostgreSQL + SQLite fallback).
+100% Real Data Mode:
+- No pre-populated dummy student submissions.
+- Real users table (`users`), real assignments & rubrics (`batches`),
+  real learner submissions (`submissions`), and real notifications (`notifications`).
 """
 
 import copy
@@ -10,12 +11,31 @@ import json
 import os
 import time
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, Float, inspect, text
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from sample_data import BATCHES
-
 Base = declarative_base()
+
+
+class UserRecord(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password = Column(String(255), nullable=False)
+    role = Column(String(32), nullable=False)  # 'learner' or 'teacher'
+    school_or_cohort = Column(String(255), nullable=False)
+    created_at = Column(Float, default=lambda: time.time())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+            "school_or_cohort": self.school_or_cohort,
+        }
 
 
 class BatchRecord(Base):
@@ -43,8 +63,8 @@ class SubmissionRecord(Base):
     initial_mark_json = Column(Text, nullable=False)
     moderation_json = Column(Text, nullable=False)
     recovery_json = Column(Text, nullable=False)
-    engine = Column(String(64), default="colleague-zero-core")
-    is_live = Column(Boolean, default=False)
+    engine = Column(String(64), default="colleague-zero-ai")
+    is_live = Column(Boolean, default=True)
     created_at = Column(Float, default=lambda: time.time())
 
     def to_dict(self):
@@ -60,7 +80,7 @@ class SubmissionRecord(Base):
             "initial_mark": json.loads(self.initial_mark_json),
             "moderation": json.loads(self.moderation_json),
             "recovery": json.loads(self.recovery_json),
-            "engine": self.engine or "colleague-zero-core",
+            "engine": self.engine or "colleague-zero-ai",
             "is_live": bool(self.is_live),
             "created_at": self.created_at,
         }
@@ -76,7 +96,7 @@ class NotificationRecord(Base):
     submission_id = Column(String(64), nullable=True)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    badge_type = Column(String(32), default="info")  # 'info', 'success', 'warning', 'recovery'
+    badge_type = Column(String(32), default="info")
     is_read = Column(Boolean, default=False)
     created_at = Column(Float, default=lambda: time.time())
     time_label = Column(String(64), default="Just now")
@@ -97,9 +117,110 @@ class NotificationRecord(Base):
         }
 
 
+# Default real assignments with rubrics (0 dummy student submissions!)
+DEFAULT_REAL_ASSIGNMENTS = [
+    {
+        "id": "caps_life_sciences",
+        "title": "Grade 12 CAPS Life Sciences — Meiosis & Genetic Variation",
+        "programme_type": "NSC CAPS · Grade 12 Paper 2 Assessment",
+        "default_goal": (
+            "Assess every incoming Grade 12 Life Sciences learner submission against CAPS Rubric v2.4, "
+            "audit for grading fairness and second-language analogies, self-correct any rubric discrepancies, "
+            "and dispatch personalised feedback with a 3-step remedial catch-up plan."
+        ),
+        "rubric": {
+            "version": "DBE CAPS Rubric v2.4 (Paper 2)",
+            "question_prompt": (
+                "Explain how Meiosis contributes to genetic variation through Crossing-Over (Prophase I) "
+                "and Random Arrangement of chromosomes (Metaphase I & II), and explain the biological "
+                "importance of halving the chromosome number from diploid (2n=46) to haploid (n=23)."
+            ),
+            "total_marks": 100,
+            "pass_mark": 50,
+            "criteria": [
+                {
+                    "id": "C1",
+                    "name": "Crossing-Over in Prophase I",
+                    "weight": 30,
+                    "description": "Homologous chromosomes pair up as bivalents, non-sister chromatids overlap at chiasmata, and exchange genetic material / DNA segments to create new allele combinations."
+                },
+                {
+                    "id": "C2",
+                    "name": "Random Arrangement in Metaphase I & II",
+                    "weight": 30,
+                    "description": "Homologous chromosome pairs arrange randomly along the equator in Metaphase I (and single chromosomes in Metaphase II), leading to independent assortment in gametes."
+                },
+                {
+                    "id": "C3",
+                    "name": "Halving Chromosome Number (Diploid to Haploid)",
+                    "weight": 25,
+                    "description": "Reduces diploid (2n / 46 chromosomes) parent cells to haploid (n / 23 chromosomes) gametes so fertilisation restores the correct diploid chromosome number."
+                },
+                {
+                    "id": "C4",
+                    "name": "Scientific Synthesis & Conceptual Clarity",
+                    "weight": 15,
+                    "description": "Clear distinction between Meiosis I and Meiosis II phases, logical cause-and-effect explanation of genetic variation, and accurate biological reasoning."
+                }
+            ]
+        }
+    },
+    {
+        "id": "seta_software_eng",
+        "title": "SETA NQF Level 5 Software Engineering — API Security & Database Design",
+        "programme_type": "MICT SETA · NQF Level 5 Workplace PoE",
+        "default_goal": (
+            "Evaluate all incoming MICT SETA NQF Level 5 learner PoE submissions against the API & Database Rubric, "
+            "moderate for practical workplace understanding vs jargon, self-correct unfair scoring, and issue 3-step recovery plans."
+        ),
+        "rubric": {
+            "version": "MICT SETA NQF5 Rubric v1.2",
+            "question_prompt": (
+                "Design a secure authentication and database architecture for a web application. "
+                "Explain: (1) Password hashing & JWT/session authentication, (2) SQL Injection prevention & parameterised queries, "
+                "(3) Relational database normalisation & indexing, and (4) Error handling & rate limiting."
+            ),
+            "total_marks": 100,
+            "pass_mark": 50,
+            "criteria": [
+                {
+                    "id": "C1",
+                    "name": "Authentication & Password Security",
+                    "weight": 30,
+                    "description": "Explains password hashing (bcrypt/Argon2 with salt), token or session management (JWT/HTTP-only cookies), and HTTPS transport security."
+                },
+                {
+                    "id": "C2",
+                    "name": "SQL Injection Prevention & Data Validation",
+                    "weight": 30,
+                    "description": "Explains parameterised queries / prepared statements or ORM binding, input sanitisation, and least-privilege database user roles."
+                },
+                {
+                    "id": "C3",
+                    "name": "Database Schema, Keys & Indexing",
+                    "weight": 25,
+                    "description": "Explains primary and foreign keys, normalisation to prevent data redundancy, and indexing columns used in frequent WHERE/JOIN queries."
+                },
+                {
+                    "id": "C4",
+                    "name": "Resilience, Rate Limiting & Audit Logging",
+                    "weight": 15,
+                    "description": "Explains brute-force rate limiting, structured error responses without leaking stack traces, and audit logging."
+                }
+            ]
+        }
+    }
+]
+
 _engine = None
 _SessionLocal = None
 _active_db_url = None
+_BATCH_CACHE = {}
+
+
+def invalidate_batch_cache():
+    global _BATCH_CACHE
+    _BATCH_CACHE.clear()
 
 
 def get_sqlite_fallback_url():
@@ -109,10 +230,6 @@ def get_sqlite_fallback_url():
 
 
 def get_database_url():
-    """
-    Returns Neon PostgreSQL URL if DATABASE_URL is set in environment/.env,
-    otherwise falls back to local SQLite colleague_zero.db.
-    """
     raw_url = (os.getenv("DATABASE_URL") or "").strip()
     if raw_url:
         if raw_url.startswith("postgres://"):
@@ -141,7 +258,7 @@ def get_db_session():
                 _engine = eng
                 _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
                 _active_db_url = candidate_url
-                seed_if_empty()
+                ensure_real_assignments_exist()
                 break
             except Exception as e:
                 print(f"DB connection attempt failed for {candidate_url.split('@')[-1]}: {e}")
@@ -159,126 +276,153 @@ def get_db_status():
     }
 
 
-def seed_if_empty(force_reset=False):
+def ensure_real_assignments_exist():
+    """
+    Ensures the real assignment rubrics exist in Neon DB, WITHOUT any fake student submissions.
+    Also removes any legacy dummy submissions (is_live == False) or old dummy batch IDs.
+    """
     global _SessionLocal
     if _SessionLocal is None:
         return
     session = _SessionLocal()
     try:
-        if force_reset:
+        # Delete any old pre-seeded dummy submissions or legacy seta_project_mgmt rows
+        deleted_dummy = session.query(SubmissionRecord).filter_by(is_live=False).delete()
+        deleted_old_batch = session.query(BatchRecord).filter_by(id="seta_project_mgmt").delete()
+        if deleted_dummy or deleted_old_batch:
             session.query(NotificationRecord).delete()
             session.query(SubmissionRecord).delete()
-            session.query(BatchRecord).delete()
             session.commit()
 
-        existing_count = session.query(BatchRecord).count()
-        if existing_count > 0 and not force_reset:
-            return
-
         now_ts = time.time()
-        for batch_id, bdata in BATCHES.items():
-            batch_rec = BatchRecord(
-                id=batch_id,
-                title=bdata["title"],
-                programme_type=bdata["programme_type"],
-                default_goal=bdata["default_goal"],
-                rubric_json=json.dumps(bdata["rubric"]),
-                updated_at=now_ts,
-            )
-            session.add(batch_rec)
-
-            for idx, sub in enumerate(bdata["submissions"]):
-                email_slug = sub["learner_name"].lower().replace(" ", ".")
-                sub_rec = SubmissionRecord(
-                    id=f"{batch_id}__{sub['id']}",
-                    batch_id=batch_id,
-                    number=sub["number"],
-                    learner_name=sub["learner_name"],
-                    learner_email=f"{email_slug}@learner.edu.za",
-                    school_or_cohort=sub["school_or_cohort"],
-                    submitted_at=sub["submitted_at"],
-                    essay_text=sub["essay_text"],
-                    initial_mark_json=json.dumps(sub["initial_mark"]),
-                    moderation_json=json.dumps(sub["moderation"]),
-                    recovery_json=json.dumps(sub["recovery"]),
-                    engine=sub.get("engine", "colleague-zero-core"),
-                    is_live=False,
-                    created_at=now_ts - (len(bdata["submissions"]) - idx) * 60,
-                )
-                session.add(sub_rec)
-
-            # Seed initial notifications so both portals look alive immediately
-            flagged_subs = [s for s in bdata["submissions"] if s["moderation"]["flagged"]]
-            recovery_subs = [s for s in bdata["submissions"] if s["recovery"]["needs_recovery"]]
-
-            session.add(
-                NotificationRecord(
-                    batch_id=batch_id,
-                    recipient_role="teacher",
-                    learner_name="Colleague Zero",
-                    submission_id=None,
-                    title=f"Batch Moderated: {len(flagged_subs)} Rubric Discrepancies Self-Corrected",
-                    message=(
-                        f"Colleague Zero audited {len(bdata['submissions'])} scripts against {bdata['rubric']['version']}. "
-                        f"RV flagged & fixed {len(flagged_subs)} marks and MS sent {len(recovery_subs)} recovery plans."
-                    ),
-                    badge_type="warning",
-                    is_read=False,
-                    created_at=now_ts - 30,
-                    time_label="Recently",
-                )
-            )
-
-            if bdata["submissions"]:
-                first_sub = bdata["submissions"][0]
+        for item in DEFAULT_REAL_ASSIGNMENTS:
+            existing = session.query(BatchRecord).filter_by(id=item["id"]).first()
+            if not existing:
                 session.add(
-                    NotificationRecord(
-                        batch_id=batch_id,
-                        recipient_role="learner",
-                        learner_name=first_sub["learner_name"],
-                        submission_id=f"{batch_id}__{first_sub['id']}",
-                        title=f"Mark Moderated & Verified: {first_sub['moderation']['corrected_score']}%",
-                        message=first_sub["recovery"]["feedback"],
-                        badge_type="success",
-                        is_read=False,
-                        created_at=now_ts - 20,
-                        time_label="Recently",
+                    BatchRecord(
+                        id=item["id"],
+                        title=item["title"],
+                        programme_type=item["programme_type"],
+                        default_goal=item["default_goal"],
+                        rubric_json=json.dumps(item["rubric"]),
+                        updated_at=now_ts,
                     )
                 )
-
+            else:
+                existing.title = item["title"]
+                existing.programme_type = item["programme_type"]
+                existing.default_goal = item["default_goal"]
+                existing.rubric_json = json.dumps(item["rubric"])
         session.commit()
+        invalidate_batch_cache()
     except Exception as e:
         session.rollback()
-        print("DB Seed Error:", e)
+        print("DB Init Error:", e)
+    finally:
+        session.close()
+
+
+def wipe_all_submissions_and_users(reset_assignments=False):
+    """
+    Completely clears all submissions and notifications (and optionally users/custom assignments)
+    so the database is 100% clean.
+    """
+    session = get_db_session()
+    try:
+        session.query(NotificationRecord).delete()
+        session.query(SubmissionRecord).delete()
+        if reset_assignments:
+            session.query(BatchRecord).delete()
+            session.query(UserRecord).delete()
+        session.commit()
+        invalidate_batch_cache()
+        ensure_real_assignments_exist()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+
+
+def register_or_login_user(name, email, password, role, school_or_cohort):
+    session = get_db_session()
+    try:
+        email_clean = email.strip().lower()
+        user = session.query(UserRecord).filter_by(email=email_clean).first()
+        if user:
+            if name.strip():
+                user.name = name.strip()
+            if school_or_cohort.strip():
+                user.school_or_cohort = school_or_cohort.strip()
+            user.role = role
+            session.commit()
+            return user.to_dict()
+        else:
+            new_user = UserRecord(
+                name=name.strip(),
+                email=email_clean,
+                password=password,
+                role=role,
+                school_or_cohort=school_or_cohort.strip() or ("Grade 12 Cohort" if role == "learner" else "Lead Educator"),
+                created_at=time.time(),
+            )
+            session.add(new_user)
+            session.commit()
+            return new_user.to_dict()
+    finally:
+        session.close()
+
+
+def create_custom_assignment(title, programme_type, default_goal, rubric_dict):
+    session = get_db_session()
+    try:
+        slug = "assign_" + str(int(time.time()))
+        rec = BatchRecord(
+            id=slug,
+            title=title.strip(),
+            programme_type=programme_type.strip(),
+            default_goal=default_goal.strip(),
+            rubric_json=json.dumps(rubric_dict),
+            updated_at=time.time(),
+        )
+        session.add(rec)
+        session.commit()
+        invalidate_batch_cache()
+        return slug
     finally:
         session.close()
 
 
 def fetch_batch_dict(batch_id="caps_life_sciences"):
+    if batch_id in _BATCH_CACHE:
+        return copy.deepcopy(_BATCH_CACHE[batch_id])
+
     session = get_db_session()
     try:
         batch_rec = session.query(BatchRecord).filter_by(id=batch_id).first()
         if not batch_rec:
-            batch_id = "caps_life_sciences"
-            batch_rec = session.query(BatchRecord).filter_by(id=batch_id).first()
+            batch_rec = session.query(BatchRecord).first()
+            if not batch_rec:
+                ensure_real_assignments_exist()
+                batch_rec = session.query(BatchRecord).first()
+            batch_id = batch_rec.id
 
         subs = (
             session.query(SubmissionRecord)
             .filter_by(batch_id=batch_id)
-            .order_by(SubmissionRecord.is_live.desc(), SubmissionRecord.created_at.desc(), SubmissionRecord.number.asc())
+            .order_by(SubmissionRecord.created_at.desc(), SubmissionRecord.number.desc())
             .all()
         )
-        # Keep numbering clean: live submissions at top get #1, etc. or preserve script number
         sub_dicts = []
         for idx, s in enumerate(subs, start=1):
             d = s.to_dict()
             d["display_number"] = idx
             sub_dicts.append(d)
 
-        all_batches = session.query(BatchRecord).all()
+        all_batches = session.query(BatchRecord).order_by(BatchRecord.updated_at.desc()).all()
         available = []
         for b in all_batches:
-            cnt = session.query(SubmissionRecord).filter_by(batch_id=b.id).count()
+            cnt = len(sub_dicts) if b.id == batch_id else session.query(SubmissionRecord).filter_by(batch_id=b.id).count()
             available.append({
                 "id": b.id,
                 "title": b.title,
@@ -294,7 +438,7 @@ def fetch_batch_dict(batch_id="caps_life_sciences"):
             .all()
         )
 
-        return {
+        result = {
             "id": batch_rec.id,
             "title": batch_rec.title,
             "programme_type": batch_rec.programme_type,
@@ -304,6 +448,8 @@ def fetch_batch_dict(batch_id="caps_life_sciences"):
             "available_batches": available,
             "notifications": [n.to_dict() for n in notifs],
         }
+        _BATCH_CACHE[batch_id] = copy.deepcopy(result)
+        return result
     finally:
         session.close()
 
@@ -312,10 +458,10 @@ def save_live_submission(batch_id, evaluated_dict, learner_email=""):
     session = get_db_session()
     try:
         now_ts = time.time()
-        now_str = datetime.now().strftime("%H:%M SAST · LIVE")
+        now_str = datetime.now().strftime("%H:%M:%S SAST")
         total_existing = session.query(SubmissionRecord).filter_by(batch_id=batch_id).count()
         new_number = total_existing + 1
-        sub_id = f"{batch_id}__LIVE-{int(now_ts * 1000)}"
+        sub_id = f"{batch_id}__SUB-{int(now_ts * 1000)}"
 
         rec = SubmissionRecord(
             id=sub_id,
@@ -329,7 +475,7 @@ def save_live_submission(batch_id, evaluated_dict, learner_email=""):
             initial_mark_json=json.dumps(evaluated_dict["initial_mark"]),
             moderation_json=json.dumps(evaluated_dict["moderation"]),
             recovery_json=json.dumps(evaluated_dict["recovery"]),
-            engine=evaluated_dict.get("engine", "colleague-zero-core"),
+            engine=evaluated_dict.get("engine", "colleague-zero-ai"),
             is_live=True,
             created_at=now_ts,
         )
@@ -345,15 +491,15 @@ def save_live_submission(batch_id, evaluated_dict, learner_email=""):
         if flagged:
             t_title = f"⚡ [RV→MK Self-Corrected] {lname} (#{new_number}): {init_score}% → {final_score}%"
             t_msg = (
-                f"New submission from {lname} was auto-assessed by [MK] at {init_score}%, "
+                f"Submission from {lname} was scored by [MK] at {init_score}%, "
                 f"flagged by Moderator [RV] ({evaluated_dict['moderation']['flag_reason']}), "
-                f"and self-corrected to {final_score}% with 0 human intervention."
+                f"and self-corrected to {final_score}%."
             )
             t_badge = "warning"
         else:
             t_title = f"✅ [RV Verified] {lname} (#{new_number}) Graded at {final_score}%"
             t_msg = (
-                f"Colleague Zero autonomously marked and moderated {lname}'s submission at {final_score}%. "
+                f"Colleague Zero marked and moderated {lname}'s submission at {final_score}%. "
                 f"{'3-Step Recovery Plan dispatched.' if needs_rec else 'Mastery feedback dispatched.'}"
             )
             t_badge = "success"
@@ -369,17 +515,17 @@ def save_live_submission(batch_id, evaluated_dict, learner_email=""):
                 badge_type=t_badge,
                 is_read=False,
                 created_at=now_ts,
-                time_label="Just now",
+                time_label=now_str,
             )
         )
 
         # 2. Create Learner Notification
         if flagged:
-            l_title = f"🛡️ Moderator Protected Your Mark! Final Score: {final_score}% (Up from {init_score}%)"
+            l_title = f"🛡️ Moderator Adjusted Your Mark: {init_score}% → {final_score}%"
         elif needs_rec:
-            l_title = f"🛟 Assignment Graded ({final_score}%) + 3-Step Catch-Up Plan Ready"
+            l_title = f"🛟 Assignment Graded ({final_score}%) — 3-Step Recovery Plan Ready"
         else:
-            l_title = f"🎉 Assignment Graded & Moderated: {final_score}%"
+            l_title = f"🎉 Assignment Graded & Verified: {final_score}%"
 
         session.add(
             NotificationRecord(
@@ -392,11 +538,12 @@ def save_live_submission(batch_id, evaluated_dict, learner_email=""):
                 badge_type="recovery" if needs_rec else "success",
                 is_read=False,
                 created_at=now_ts,
-                time_label="Just now",
+                time_label=now_str,
             )
         )
 
         session.commit()
+        invalidate_batch_cache()
         return rec.to_dict()
     except Exception as e:
         session.rollback()
@@ -412,6 +559,6 @@ def mark_notifications_read(batch_id, recipient_role):
             batch_id=batch_id, recipient_role=recipient_role, is_read=False
         ).update({"is_read": True})
         session.commit()
+        invalidate_batch_cache()
     finally:
         session.close()
-

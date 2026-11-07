@@ -7,30 +7,18 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #060a12;
-      color: #f1f5f9;
-    }
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #060a12; color: #f1f5f9; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
     @keyframes pulseGlow {
       0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
       50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
     }
-    .agent-working {
-      animation: pulseGlow 1.5s infinite;
-      border-color: #10b981 !important;
-    }
+    .agent-working { animation: pulseGlow 1.5s infinite; border-color: #10b981 !important; }
     @keyframes pulseAmber {
       0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
       50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
     }
-    .agent-flagging {
-      animation: pulseAmber 1.2s infinite;
-      border-color: #f59e0b !important;
-    }
+    .agent-flagging { animation: pulseAmber 1.2s infinite; border-color: #f59e0b !important; }
     @keyframes slideInRight {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -53,7 +41,7 @@
           </div>
           <div>
             <div class="text-[10px] mono uppercase tracking-wider text-emerald-400 font-bold">Autonomous Colleague Alert · 0 Human Help</div>
-            <h4 id="teacherToastTitle" class="text-xs font-bold text-white mt-0.5">New Learner Submission Received</h4>
+            <h4 id="teacherToastTitle" class="text-xs font-bold text-white mt-0.5">New Learner Submission Graded</h4>
             <p id="teacherToastMessage" class="text-xs text-slate-300 mt-1 leading-relaxed"></p>
           </div>
         </div>
@@ -76,22 +64,24 @@
               Autonomous Mode: ON
             </span>
           </div>
-          <p class="text-xs text-slate-400">Logged in as Ms. Zanele Ndlovu · Lead Educator &amp; Internal Moderator</p>
+          <p id="teacherHeaderSub" class="text-xs text-slate-400">Signed in as Educator · Neon Serverless Postgres Connected</p>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <!-- Batch Selector -->
+        <!-- Dynamic Assignment Selector -->
         <select id="batchSelector" onchange="switchBatch(this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500">
-          <option value="caps_life_sciences">📚 Grade 12 CAPS Life Sciences (Meiosis)</option>
-          <option value="seta_project_mgmt">🏢 SETA NQF4 Workplace Risk PoE</option>
         </select>
+
+        <!-- Create New Assignment & Rubric Button -->
+        <button onclick="openCreateAssignmentModal()" class="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition flex items-center gap-1.5">
+          <span>＋</span> New Assignment &amp; Rubric
+        </button>
 
         <!-- Notification Bell -->
         <div class="relative">
           <button onclick="toggleTeacherNotifDrawer()" class="relative px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 flex items-center gap-1.5 transition">
             <span>🔔</span>
-            <span class="hidden sm:inline">Notifications</span>
             <span id="teacherNotifBadge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold mono text-[10px]">0</span>
           </button>
 
@@ -105,19 +95,19 @@
         </div>
 
         <button onclick="openRubricModal()" class="text-xs font-medium px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition">
-          📋 Rubric
+          📋 View Rubric
         </button>
 
         <a id="exportCsvLink" href="/api/export/caps_life_sciences.csv" class="text-xs font-medium px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition">
-          ⬇ Export CSV
+          ⬇ CSV
         </a>
 
-        <button onclick="resetDemoData()" class="text-xs font-medium px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition" title="Reset Demo Data">
-          ↺ Reset
+        <button onclick="resetDemoData()" class="text-xs font-medium px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-400 hover:text-rose-300 border border-slate-800 transition" title="Clear All Submissions">
+          🗑 Clear Submissions
         </button>
 
         <a href="/login" class="text-xs px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition">
-          Switch Account
+          Sign Out
         </a>
       </div>
     </div>
@@ -125,7 +115,7 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-    <!-- Live Cross-Tab Incoming Submission Banner (Hidden until learner submits in Tab 1) -->
+    <!-- Live Cross-Tab Incoming Submission Banner -->
     <div id="liveIncomingBanner" class="hidden rounded-2xl bg-emerald-950/40 border-2 border-emerald-500/70 p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-emerald-500/10">
       <div class="flex items-center gap-3">
         <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
@@ -139,32 +129,19 @@
       </span>
     </div>
 
-    <!-- Section 1: High-Level Outcome Goal + 4-Agent Pipeline -->
+    <!-- Section 1: Standing Outcome Goal + 4-Agent Pipeline -->
     <section class="rounded-2xl bg-slate-900/90 border border-slate-800 p-5 shadow-xl">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex-1 space-y-1.5">
           <div class="flex items-center gap-2">
-            <span class="text-[11px] mono uppercase tracking-wider text-emerald-400 font-semibold">01 · Standing Outcome Goal (No Prompting Required)</span>
-            <span id="runStateBadge" class="text-[11px] mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">listening &amp; autonomous</span>
+            <span class="text-[11px] mono uppercase tracking-wider text-emerald-400 font-semibold">01 · Standing Outcome Goal (Autonomous Listener Active)</span>
+            <span id="runStateBadge" class="text-[11px] mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">listening for learner submissions</span>
           </div>
           <div class="relative">
             <input id="goalInput" type="text"
               class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500/60 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-100 mono focus:outline-none"
-              value="Mark all Grade 12 Life Sciences essays against CAPS Rubric v2.4, moderate for grading fairness, self-correct any rubric discrepancies, and send every learner personalised feedback and remedial catch-up plans." />
+              value="" />
           </div>
-        </div>
-
-        <div class="flex items-center gap-2 shrink-0">
-          <select id="speedSelect" class="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-2.5 mono focus:outline-none">
-            <option value="1">Pace: Live (1x)</option>
-            <option value="0.4">Pace: Fast (2.5x)</option>
-          </select>
-
-          <button id="runColleagueBtn" onclick="startAutonomousRun()"
-            class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
-            <span>▶</span>
-            <span>Run Full Batch</span>
-          </button>
         </div>
       </div>
 
@@ -182,9 +159,9 @@
                   <p class="text-[10px] text-slate-400">01 · Reasons &amp; Queues</p>
                 </div>
               </div>
-              <span id="agent-status-PL" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">ready</span>
+              <span id="agent-status-PL" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">listening</span>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed">Parses outcome goal, maps CAPS/SETA rubric weights, and routes incoming learner scripts.</p>
+            <p class="text-[11px] text-slate-400 leading-relaxed">Extracts rubric criteria &amp; weights and routes incoming learner submissions.</p>
           </div>
 
           <!-- Agent 2: MK Marker / Assessor -->
@@ -197,7 +174,7 @@
                   <p class="text-[10px] text-slate-400">02 · Marks &amp; Re-Marks</p>
                 </div>
               </div>
-              <span id="agent-status-MK" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">ready</span>
+              <span id="agent-status-MK" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">standby</span>
             </div>
             <p class="text-[11px] text-slate-400 leading-relaxed">Scores each criterion and executes <span class="mono text-emerald-400">[MK·FIX]</span> when flagged by Moderator.</p>
           </div>
@@ -212,9 +189,9 @@
                   <p class="text-[10px] text-amber-400/90 font-medium">03 · Self-Correction Loop</p>
                 </div>
               </div>
-              <span id="agent-status-RV" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">ready</span>
+              <span id="agent-status-RV" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">standby</span>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed">Audits marks against rubric, flags unfair ESL/halo errors, and forces re-marking.</p>
+            <p class="text-[11px] text-slate-400 leading-relaxed">Audits marks against rubric criteria, flags unfair penalties, and forces re-marking.</p>
           </div>
 
           <!-- Agent 4: MS Messenger / Recovery -->
@@ -227,9 +204,9 @@
                   <p class="text-[10px] text-slate-400">04 · Feedback &amp; Catch-Up</p>
                 </div>
               </div>
-              <span id="agent-status-MS" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">ready</span>
+              <span id="agent-status-MS" class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">standby</span>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed">Sends personalised feedback and 3-step remedial catch-up plans to the Learner Portal.</p>
+            <p class="text-[11px] text-slate-400 leading-relaxed">Generates criterion-specific feedback and 3-step recovery plans for the Learner Portal.</p>
           </div>
 
         </div>
@@ -252,17 +229,14 @@
             <span id="selfCorrectionLoopBadge" class="hidden text-[11px] mono px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
               ⚡ RV → MK Self-Correction Active
             </span>
-            <button onclick="instantCompleteRun()" class="text-[11px] mono text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800/80">
-              Skip Animation ⏭
-            </button>
           </div>
         </div>
 
-        <div id="agentTerminal" class="p-4 space-y-2 text-xs mono h-[310px] overflow-y-auto bg-[#050811]"></div>
+        <div id="agentTerminal" class="p-4 space-y-2 text-xs mono h-[290px] overflow-y-auto bg-[#050811]"></div>
 
         <div class="px-4 py-2.5 bg-slate-900/90 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs mono">
           <div class="flex items-center gap-4">
-            <span id="stepCounter" class="text-slate-300">Autonomous Listener Active</span>
+            <span id="stepCounter" class="text-slate-300">Listening on Neon DB</span>
             <span class="text-emerald-400 font-semibold">Human interventions: 0</span>
           </div>
           <div class="flex items-center gap-4">
@@ -277,9 +251,9 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5">
-            <div class="text-[11px] mono uppercase text-slate-400">Scripts Assessed</div>
+            <div class="text-[11px] mono uppercase text-slate-400">Real Submissions</div>
             <div class="mt-1 flex items-baseline gap-2">
-              <span id="kpiMarked" class="text-2xl font-extrabold text-white mono">0 / 8</span>
+              <span id="kpiMarked" class="text-2xl font-extrabold text-white mono">0</span>
               <span id="kpiAvgScore" class="text-xs text-emerald-400 mono">Avg: --%</span>
             </div>
           </div>
@@ -288,7 +262,7 @@
             <div class="text-[11px] mono uppercase text-amber-300">RV Self-Corrections</div>
             <div class="mt-1 flex items-baseline gap-2">
               <span id="kpiCorrections" class="text-2xl font-extrabold text-amber-400 mono">0</span>
-              <span class="text-xs text-amber-300/80 mono">errors fixed</span>
+              <span class="text-xs text-amber-300/80 mono">marks adjusted</span>
             </div>
           </div>
 
@@ -301,10 +275,10 @@
           </div>
 
           <div class="rounded-xl bg-slate-900/90 border border-emerald-500/30 p-3.5">
-            <div class="text-[11px] mono uppercase text-emerald-300">Teacher Time Saved</div>
+            <div class="text-[11px] mono uppercase text-emerald-300">Educator Time Saved</div>
             <div class="mt-1 flex items-baseline gap-2">
-              <span id="kpiTimeSaved" class="text-2xl font-extrabold text-emerald-400 mono">3.6 hrs</span>
-              <span class="text-xs text-emerald-300/80 mono">/ cohort</span>
+              <span id="kpiTimeSaved" class="text-2xl font-extrabold text-emerald-400 mono">0.0 hrs</span>
+              <span class="text-xs text-emerald-300/80 mono">auto-graded</span>
             </div>
           </div>
         </div>
@@ -316,33 +290,125 @@
               <span class="text-xs font-bold uppercase tracking-wider text-amber-400 mono">
                 🔍 Moderator Self-Correction Spotlight (RV → MK)
               </span>
-              <span class="text-[11px] text-slate-400">Click to inspect</span>
             </div>
-            <div id="spotlightContainer" class="space-y-2 max-h-[195px] overflow-y-auto pr-1"></div>
+            <div id="spotlightContainer" class="space-y-2 max-h-[185px] overflow-y-auto pr-1"></div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Section 3: Class Marksheet & Moderation Queue -->
+    <!-- Section 3: Real Learner Submissions Marksheet -->
     <section class="space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="batchTitleHeading" class="text-lg font-bold text-white">Class Submissions &amp; Moderation Audit Queue</h2>
-          <p class="text-xs text-slate-400">Live submissions from the Learner Portal appear automatically at the top (`LIVE SUBMISSION`). Click any learner card for full rubric breakdown.</p>
+          <h2 id="batchTitleHeading" class="text-lg font-bold text-white">Real Learner Submissions &amp; Moderation Queue</h2>
+          <p class="text-xs text-slate-400">When a learner submits from the Learner Portal (`/learner`), Colleague Zero grades and moderates it here automatically.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="filterCards('all')" id="filter-all" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold">All Scripts</button>
+          <button onclick="filterCards('all')" id="filter-all" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold">All Submissions</button>
           <button onclick="filterCards('flagged')" id="filter-flagged" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-amber-300 hover:bg-slate-800 border border-amber-500/30">⚡ Moderator Self-Corrected</button>
           <button onclick="filterCards('recovery')" id="filter-recovery" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-indigo-300 hover:bg-slate-800 border border-indigo-500/30">🛟 Recovery Plan Sent</button>
         </div>
       </div>
 
-      <div id="submissionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      <div id="submissionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
   </main>
+
+  <!-- Create New Assignment & Rubric Modal -->
+  <div id="createAssignmentModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white">Create New Real Assignment &amp; Rubric</h3>
+          <p class="text-xs text-slate-400">Saved directly to Neon Postgres. Learners can immediately select and submit to this assignment.</p>
+        </div>
+        <button onclick="closeCreateAssignmentModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+      </div>
+
+      <form onsubmit="submitNewAssignment(event)" class="space-y-3.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Assignment Title</label>
+            <input id="caTitle" type="text" placeholder="e.g. Grade 12 Physical Sciences — Chemical Equilibrium" required
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Programme / Subject</label>
+            <input id="caProg" type="text" placeholder="e.g. NSC CAPS · Grade 12 / SETA NQF 5" required
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Assignment Question Prompt (Shown to Learner)</label>
+          <textarea id="caPrompt" rows="2" placeholder="Describe the exact question learners must answer..." required
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white"></textarea>
+        </div>
+
+        <div class="space-y-2">
+          <div class="font-bold text-emerald-400 mono uppercase">Rubric Criteria (Total 100 Marks):</div>
+
+          <div class="grid grid-cols-12 gap-2 items-start bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <div class="col-span-4">
+              <input id="c1Name" type="text" placeholder="C1 Name (e.g. Le Chatelier's Principle)" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+            <div class="col-span-2">
+              <input id="c1Weight" type="number" value="30" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white mono" />
+            </div>
+            <div class="col-span-6">
+              <input id="c1Desc" type="text" placeholder="Required concepts & keywords for C1..." required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-12 gap-2 items-start bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <div class="col-span-4">
+              <input id="c2Name" type="text" placeholder="C2 Name" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+            <div class="col-span-2">
+              <input id="c2Weight" type="number" value="30" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white mono" />
+            </div>
+            <div class="col-span-6">
+              <input id="c2Desc" type="text" placeholder="Required concepts & keywords for C2..." required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-12 gap-2 items-start bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <div class="col-span-4">
+              <input id="c3Name" type="text" placeholder="C3 Name" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+            <div class="col-span-2">
+              <input id="c3Weight" type="number" value="25" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white mono" />
+            </div>
+            <div class="col-span-6">
+              <input id="c3Desc" type="text" placeholder="Required concepts & keywords for C3..." required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-12 gap-2 items-start bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <div class="col-span-4">
+              <input id="c4Name" type="text" placeholder="C4 Name (e.g. Scientific Synthesis)" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+            <div class="col-span-2">
+              <input id="c4Weight" type="number" value="15" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white mono" />
+            </div>
+            <div class="col-span-6">
+              <input id="c4Desc" type="text" placeholder="Required concepts & keywords for C4..." required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeCreateAssignmentModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold">
+            Save Assignment &amp; Rubric to Neon DB
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Deep-Dive Learner Inspection Modal -->
   <div id="inspectModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -413,7 +479,7 @@
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 id="rubricModalTitle" class="text-base font-bold text-white">Active Assessment Rubric</h3>
-          <p class="text-xs text-slate-400">Used by Assessor (MK) for initial scoring and Moderator (RV) for self-correction audits.</p>
+          <p id="rubricModalPrompt" class="text-xs text-slate-300 mt-1"></p>
         </div>
         <button onclick="closeRubricModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
       </div>
@@ -426,11 +492,17 @@
     let currentBatch = null;
     let currentFilter = 'all';
     let runTimers = [];
-    let revealedIds = new Set();
     let knownSubmissionIds = new Set();
     let lastTeacherNotifId = 0;
 
-    async function loadBatchData(batchId = 'caps_life_sciences', autoStart = false) {
+    function initTeacherIdentity() {
+      const params = new URLSearchParams(window.location.search);
+      const name = params.get('name') || localStorage.getItem('cz_teacher_name') || 'Educator';
+      const school = params.get('school') || localStorage.getItem('cz_teacher_school') || 'Assessment & Moderation';
+      document.getElementById('teacherHeaderSub').textContent = `Signed in as ${name} · ${school}`;
+    }
+
+    async function loadBatchData(batchId = currentBatchId) {
       currentBatchId = batchId;
       clearRunTimers();
       const res = await fetch(`/api/batches?batch_id=${encodeURIComponent(batchId)}`);
@@ -438,43 +510,44 @@
       if (!data.ok) return;
 
       currentBatch = data.batch;
+      currentBatchId = currentBatch.id;
       knownSubmissionIds = new Set(currentBatch.submissions.map(s => s.id));
+
+      const sel = document.getElementById('batchSelector');
+      sel.innerHTML = (data.available_batches || []).map(b =>
+        `<option value="${b.id}" ${b.id === currentBatchId ? 'selected' : ''}>📚 ${b.title} (${b.count})</option>`
+      ).join('');
+
       document.getElementById('goalInput').value = currentBatch.default_goal;
-      document.getElementById('batchTitleHeading').textContent = `${currentBatch.title} (${currentBatch.submissions.length} Scripts)`;
+      document.getElementById('batchTitleHeading').textContent = `${currentBatch.title} (${currentBatch.submissions.length} Submissions)`;
       document.getElementById('exportCsvLink').href = `/api/export/${currentBatch.id}.csv`;
 
       updateTeacherNotifications(data.notifications || [], false);
       renderSpotlights();
+      renderSubmissionsGrid();
 
-      if (autoStart) {
-        startAutonomousRun();
-      } else {
-        revealedIds = new Set(currentBatch.submissions.map(s => s.id));
-        renderSubmissionsGrid();
-        const flagged = currentBatch.submissions.filter(s => s.moderation.flagged).length;
-        const recovery = currentBatch.submissions.filter(s => s.recovery.needs_recovery).length;
-        updateKPIs(currentBatch.submissions.length, flagged, recovery);
-        document.getElementById('flagsCaughtCount').textContent = String(flagged);
-        document.getElementById('recoveryPlansCount').textContent = String(recovery);
-        seedInitialTerminalSummary();
-      }
+      const flagged = currentBatch.submissions.filter(s => s.moderation.flagged).length;
+      const recovery = currentBatch.submissions.filter(s => s.recovery.needs_recovery).length;
+      updateKPIs(currentBatch.submissions.length, flagged, recovery);
+      document.getElementById('flagsCaughtCount').textContent = String(flagged);
+      document.getElementById('recoveryPlansCount').textContent = String(recovery);
+      seedInitialTerminalSummary();
     }
 
     function seedInitialTerminalSummary() {
       const term = document.getElementById('agentTerminal');
       term.innerHTML = '';
       const total = currentBatch.submissions.length;
-      const flagged = currentBatch.submissions.filter(s => s.moderation.flagged);
-      const recovery = currentBatch.submissions.filter(s => s.recovery.needs_recovery);
-      appendLog('00:00:00', '[PL·READY]', `Standing Goal Active. Loaded ${currentBatch.rubric.version} (${currentBatch.rubric.criteria.length} criteria). Monitoring Learner Portal for live submissions...`, 'text-sky-400');
-      appendLog('00:00:02', '[RV·AUDIT]', `${total} cohort scripts verified (${flagged.length} self-corrected by [RV] → [MK], ${recovery.length} recovery plans dispatched by [MS]).`, 'text-emerald-400');
-      if (flagged.length > 0) {
-        const f = flagged[0];
-        appendLog('00:00:04', '[RV·SPOTLIGHT]', `Latest self-correction: ${f.learner_name} (#${f.number}) ${f.initial_mark.score}% → ${f.moderation.corrected_score}% (${f.moderation.flag_reason})`, 'text-amber-400');
+      appendLog('READY', '[PL·STANDBY]', `Active Assignment: "${currentBatch.title}" (${currentBatch.rubric.version}).`, 'text-sky-400');
+      if (total === 0) {
+        appendLog('WAIT', '[C0·LISTEN]', `0 submissions in database. Waiting for a learner to submit on the Learner Portal (/learner)...`, 'text-emerald-400');
+      } else {
+        const latest = currentBatch.submissions[0];
+        appendLog('DONE', '[MK·EVAL]', `Latest (#${latest.number} ${latest.learner_name}): ${latest.initial_mark.rationale}`, 'text-purple-400');
+        appendLog('DONE', '[RV·AUDIT]', `${latest.moderation.correction_log}`, 'text-amber-400');
       }
     }
 
-    // Background polling so when a Learner submits in Tab 1, Tab 2 automatically runs the 4 agents live!
     async function pollForLiveLearnerSubmissions() {
       if (!currentBatch) return;
       try {
@@ -501,22 +574,22 @@
       const banner = document.getElementById('liveIncomingBanner');
       const bannerText = document.getElementById('liveIncomingText');
       banner.classList.remove('hidden');
-      bannerText.textContent = `Received live submission from ${sub.learner_name} (${sub.school_or_cohort}) — Colleague Zero running PL → MK → RV → MS...`;
+      bannerText.textContent = `New submission received from ${sub.learner_name} (${sub.school_or_cohort}) — Colleague Zero running PL → MK → RV → MS...`;
 
       const term = document.getElementById('agentTerminal');
       term.innerHTML = '';
 
       setAgentState('PL', 'routing', 'working');
-      setAgentState('MK', 'idle', 'idle');
-      setAgentState('RV', 'idle', 'idle');
-      setAgentState('MS', 'idle', 'idle');
+      setAgentState('MK', 'standby', 'idle');
+      setAgentState('RV', 'standby', 'idle');
+      setAgentState('MS', 'standby', 'idle');
 
-      appendLog('LIVE·00s', '[PL·TRIGGER]', `Incoming submission detected from Learner Portal: ${sub.learner_name} (#${sub.number}). Matching against ${currentBatch.rubric.version}...`, 'text-sky-400');
+      appendLog('LIVE·00s', '[PL·TRIGGER]', `New submission #${sub.number} from ${sub.learner_name}. Loaded ${currentBatch.rubric.version} (${currentBatch.rubric.criteria.length} criteria).`, 'text-sky-400');
 
       runTimers.push(setTimeout(() => {
         setAgentState('PL', 'done', 'done');
         setAgentState('MK', 'marking', 'working');
-        appendLog('LIVE·01s', '[MK·INITIAL]', `Assessor [MK] scored ${sub.learner_name} (#${sub.number}) at ${sub.initial_mark.score}% — "${sub.initial_mark.rationale}"`, 'text-purple-400');
+        appendLog('LIVE·01s', '[MK·INITIAL]', `Assessor [MK] scored #${sub.number} at ${sub.initial_mark.score}%: ${sub.initial_mark.rationale}`, 'text-purple-400');
       }, 600));
 
       runTimers.push(setTimeout(() => {
@@ -524,31 +597,30 @@
         if (sub.moderation.flagged) {
           setAgentState('RV', 'flagging', 'flagging');
           document.getElementById('selfCorrectionLoopBadge').classList.remove('hidden');
-          appendLog('LIVE·02s', '[RV·FLAG]', `Moderator [RV] rejected initial mark (${sub.initial_mark.score}%): ${sub.moderation.flag_reason}`, 'text-amber-400');
+          appendLog('LIVE·02s', '[RV·FLAG]', `Moderator [RV] flagged initial mark (${sub.initial_mark.score}%): ${sub.moderation.flag_reason}`, 'text-amber-400');
         } else {
           setAgentState('RV', 'auditing', 'working');
-          appendLog('LIVE·02s', '[RV·AUDIT]', `Moderator [RV] auditing ${sub.learner_name}'s criterion scores against ${currentBatch.rubric.version}...`, 'text-amber-300');
+          appendLog('LIVE·02s', '[RV·AUDIT]', `Moderator [RV] auditing criterion scores against ${currentBatch.rubric.version}...`, 'text-amber-300');
         }
       }, 1500));
 
       runTimers.push(setTimeout(() => {
         if (sub.moderation.flagged) {
           setAgentState('MK', 'fixing', 'working');
-          appendLog('LIVE·03s', '[MK·FIX]', `Self-Correction Complete: ${sub.moderation.correction_log}`, 'text-emerald-400');
+          appendLog('LIVE·03s', '[MK·FIX]', `${sub.moderation.correction_log}`, 'text-emerald-400');
         } else {
           appendLog('LIVE·03s', '[RV·PASS]', `${sub.moderation.correction_log}`, 'text-emerald-400');
         }
-      }, 2500));
+      }, 2400));
 
       runTimers.push(setTimeout(() => {
         setAgentState('MK', 'done', 'done');
         setAgentState('RV', 'done', 'done');
         document.getElementById('selfCorrectionLoopBadge').classList.add('hidden');
         setAgentState('MS', 'dispatching', 'working');
-        appendLog('LIVE·04s', '[MS·DISPATCH]', `Dispatched verified grade (${sub.moderation.corrected_score}%) & 3-Step Recovery Plan back to ${sub.learner_name}'s Learner Portal.`, 'text-indigo-400');
+        appendLog('LIVE·04s', '[MS·DISPATCH]', `Sent final grade (${sub.moderation.corrected_score}%) & custom 3-step recovery plan to ${sub.learner_name}'s Learner Portal.`, 'text-indigo-400');
 
-        revealedIds = new Set(currentBatch.submissions.map(s => s.id));
-        document.getElementById('batchTitleHeading').textContent = `${currentBatch.title} (${currentBatch.submissions.length} Scripts)`;
+        document.getElementById('batchTitleHeading').textContent = `${currentBatch.title} (${currentBatch.submissions.length} Submissions)`;
         renderSpotlights();
         renderSubmissionsGrid();
 
@@ -561,13 +633,13 @@
         setTimeout(() => {
           setAgentState('MS', 'done', 'done');
           bannerText.textContent = `✓ Completed autonomous assessment, moderation & recovery dispatch for ${sub.learner_name} (#${sub.number}) — Final Mark: ${sub.moderation.corrected_score}%.`;
-        }, 700);
-      }, 3400));
+        }, 600);
+      }, 3200));
     }
 
     function switchBatch(batchId) {
       document.getElementById('liveIncomingBanner').classList.add('hidden');
-      loadBatchData(batchId, false);
+      loadBatchData(batchId);
     }
 
     function clearRunTimers() {
@@ -608,148 +680,16 @@
       term.scrollTop = term.scrollHeight;
     }
 
-    function startAutonomousRun() {
-      if (!currentBatch) return;
-      clearRunTimers();
-      revealedIds.clear();
-      renderSubmissionsGrid();
-
-      const subs = currentBatch.submissions;
-      const total = subs.length;
-      const flaggedSubs = subs.filter(s => s.moderation.flagged);
-      const recoverySubs = subs.filter(s => s.recovery.needs_recovery);
-      const speed = parseFloat(document.getElementById('speedSelect').value || '1');
-
-      const term = document.getElementById('agentTerminal');
-      term.innerHTML = '';
-      document.getElementById('flagsCaughtCount').textContent = '0';
-      document.getElementById('recoveryPlansCount').textContent = '0';
-      document.getElementById('stepCounter').textContent = 'Step 1 of 8';
-      document.getElementById('selfCorrectionLoopBadge').classList.add('hidden');
-
-      setAgentState('PL', 'working', 'working');
-      setAgentState('MK', 'idle', 'idle');
-      setAgentState('RV', 'idle', 'idle');
-      setAgentState('MS', 'idle', 'idle');
-      updateKPIs(0, 0, 0);
-
-      const events = [
-        {
-          delay: 200,
-          fn: () => {
-            appendLog('00:00:00', '[PL·INFO]', `Goal received. Loaded ${currentBatch.rubric.version} (${currentBatch.rubric.criteria.length} criteria). Queued ${total} learner scripts.`, 'text-sky-400');
-          }
-        },
-        {
-          delay: 1100,
-          fn: () => {
-            setAgentState('PL', 'done', 'done');
-            setAgentState('MK', 'marking', 'working');
-            const half = Math.ceil(total / 2);
-            subs.slice(0, half).forEach(s => revealedIds.add(s.id));
-            renderSubmissionsGrid();
-            updateKPIs(half, 0, 0);
-            appendLog('00:02:10', '[MK·INFO]', `Batch 1 marked (${half}/${total} scripts). Passing to Internal Moderator [RV]...`, 'text-purple-400');
-            setAgentState('RV', 'auditing', 'working');
-          }
-        },
-        {
-          delay: 2400,
-          fn: () => {
-            if (flaggedSubs.length > 0) {
-              const f1 = flaggedSubs[0];
-              setAgentState('RV', 'flagging', 'flagging');
-              document.getElementById('selfCorrectionLoopBadge').classList.remove('hidden');
-              appendLog('00:04:05', '[RV·FLAG]', `${f1.moderation.flag_reason} Sending #${f1.number} (${f1.learner_name}) back to [MK].`, 'text-amber-400');
-            }
-          }
-        },
-        {
-          delay: 3600,
-          fn: () => {
-            if (flaggedSubs.length > 0) {
-              const f1 = flaggedSubs[0];
-              setAgentState('MK', 'fixing #' + f1.number, 'working');
-              appendLog('00:05:18', '[MK·FIX]', `${f1.moderation.correction_log}`, 'text-emerald-400');
-              document.getElementById('flagsCaughtCount').textContent = '1';
-              updateKPIs(Math.ceil(total / 2), 1, 0);
-            }
-          }
-        },
-        {
-          delay: 4800,
-          fn: () => {
-            subs.forEach(s => revealedIds.add(s.id));
-            renderSubmissionsGrid();
-            if (flaggedSubs.length > 1) {
-              flaggedSubs.slice(1).forEach(f => {
-                appendLog('00:07:12', '[RV·FLAG]', `${f.moderation.flag_reason}`, 'text-amber-400');
-                appendLog('00:07:45', '[MK·FIX]', `${f.moderation.correction_log}`, 'text-emerald-400');
-              });
-            }
-            document.getElementById('flagsCaughtCount').textContent = String(flaggedSubs.length);
-            updateKPIs(total, flaggedSubs.length, 0);
-          }
-        },
-        {
-          delay: 6000,
-          fn: () => {
-            setAgentState('MK', 'done', 'done');
-            setAgentState('RV', 'done', 'done');
-            document.getElementById('selfCorrectionLoopBadge').classList.add('hidden');
-            setAgentState('MS', 'dispatching', 'working');
-            appendLog('00:09:30', '[RV·PASS]', `All ${total} scripts passed internal moderation. Handing off to Recovery Agent [MS].`, 'text-emerald-400');
-          }
-        },
-        {
-          delay: 7200,
-          fn: () => {
-            setAgentState('MS', 'done', 'done');
-            document.getElementById('recoveryPlansCount').textContent = String(recoverySubs.length);
-            updateKPIs(total, flaggedSubs.length, recoverySubs.length);
-            appendLog('00:11:00', '[MS·DONE]', `Dispatched feedback & ${recoverySubs.length} 3-step remedial catch-up plans to Learner Portal. Outcome complete.`, 'text-indigo-400');
-            document.getElementById('stepCounter').textContent = 'Completed · 0 Human Interventions';
-          }
-        }
-      ];
-
-      events.forEach(ev => {
-        runTimers.push(setTimeout(ev.fn, ev.delay * speed));
-      });
-    }
-
-    function instantCompleteRun() {
-      if (!currentBatch) return;
-      clearRunTimers();
-      const subs = currentBatch.submissions;
-      const flaggedSubs = subs.filter(s => s.moderation.flagged);
-      const recoverySubs = subs.filter(s => s.recovery.needs_recovery);
-      revealedIds = new Set(subs.map(s => s.id));
-      renderSubmissionsGrid();
-
-      setAgentState('PL', 'done', 'done');
-      setAgentState('MK', 'done', 'done');
-      setAgentState('RV', 'done', 'done');
-      setAgentState('MS', 'done', 'done');
-      document.getElementById('selfCorrectionLoopBadge').classList.add('hidden');
-      document.getElementById('flagsCaughtCount').textContent = String(flaggedSubs.length);
-      document.getElementById('recoveryPlansCount').textContent = String(recoverySubs.length);
-      updateKPIs(subs.length, flaggedSubs.length, recoverySubs.length);
-      appendLog('00:11:00', '[MS·DONE]', `All ${subs.length} scripts marked, ${flaggedSubs.length} self-corrected, ${recoverySubs.length} recovery plans delivered.`, 'text-emerald-400');
-    }
-
-    function updateKPIs(markedCount, corrCount = null, recCount = null) {
+    function updateKPIs(markedCount, corrCount = 0, recCount = 0) {
       if (!currentBatch) return;
       const subs = currentBatch.submissions;
       const total = subs.length;
-      const avg = Math.round(subs.reduce((acc, s) => acc + s.moderation.corrected_score, 0) / (total || 1));
-      const flagged = corrCount !== null ? corrCount : subs.filter(s => s.moderation.flagged).length;
-      const recovery = recCount !== null ? recCount : subs.filter(s => s.recovery.needs_recovery).length;
+      const avg = total > 0 ? Math.round(subs.reduce((acc, s) => acc + s.moderation.corrected_score, 0) / total) : 0;
 
-      document.getElementById('kpiMarked').textContent = `${markedCount} / ${total}`;
-      document.getElementById('kpiAvgScore').textContent = markedCount > 0 ? `Avg: ${avg}%` : 'Avg: --%';
-      document.getElementById('kpiCorrections').textContent = String(flagged);
-      document.getElementById('kpiRecovery').textContent = String(recovery);
+      document.getElementById('kpiMarked').textContent = String(total);
+      document.getElementById('kpiAvgScore').textContent = total > 0 ? `Avg: ${avg}%` : 'Avg: --%';
+      document.getElementById('kpiCorrections').textContent = String(corrCount);
+      document.getElementById('kpiRecovery').textContent = String(recCount);
       document.getElementById('kpiTimeSaved').textContent = `${(total * 0.45).toFixed(1)} hrs`;
     }
 
@@ -757,6 +697,10 @@
       if (!currentBatch) return;
       const container = document.getElementById('spotlightContainer');
       const flagged = currentBatch.submissions.filter(s => s.moderation.flagged);
+      if (flagged.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-500 py-6 text-center">No Moderator self-corrections triggered yet for this assignment.</div>`;
+        return;
+      }
       container.innerHTML = flagged.map(s => {
         const initScore = s.initial_mark.score;
         const finalScore = s.moderation.corrected_score;
@@ -765,12 +709,12 @@
         return `
           <div onclick="openInspectModal('${s.id}')" class="cursor-pointer rounded-xl bg-slate-950/90 border border-amber-500/30 hover:border-amber-400 p-3 transition">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white">#${s.number} · ${s.learner_name} ${s.is_live ? '<span class="text-[10px] text-emerald-400 mono">(LIVE)</span>' : ''}</span>
+              <span class="text-xs font-bold text-white">#${s.number} · ${s.learner_name}</span>
               <span class="text-xs mono font-bold ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
                 <span class="line-through text-slate-500 mr-1">${initScore}%</span>→ ${finalScore}% (${sign})
               </span>
             </div>
-            <p class="text-[11px] text-amber-200/90 mt-1 line-clamp-1">${s.moderation.flag_reason}</p>
+            <p class="text-[11px] text-amber-200/90 mt-1 line-clamp-2">${s.moderation.flag_reason}</p>
           </div>
         `;
       }).join('');
@@ -800,38 +744,31 @@
         return true;
       });
 
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full rounded-2xl bg-slate-900/60 border border-slate-800 p-10 text-center space-y-2">
+            <div class="text-2xl">📭</div>
+            <h3 class="text-sm font-bold text-white">No Learner Submissions Yet</h3>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">
+              Open the <strong>Learner Portal (`/learner`)</strong> in Tab 1 and submit an assignment answer. Colleague Zero will automatically detect, grade, moderate, and display it here in real time.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
       grid.innerHTML = filtered.map(s => {
-        const isRevealed = revealedIds.has(s.id);
         const initScore = s.initial_mark.score;
         const finalScore = s.moderation.corrected_score;
         const delta = finalScore - initScore;
         const passed = finalScore >= passMark;
 
-        if (!isRevealed) {
-          return `
-            <div class="rounded-2xl bg-slate-900/40 border border-slate-800/60 p-4 opacity-50 flex flex-col justify-between h-44 animate-pulse">
-              <div class="flex items-center justify-between">
-                <span class="text-xs mono text-slate-500">#${s.number} · Queued</span>
-                <span class="text-[11px] mono px-2 py-0.5 rounded bg-slate-800 text-slate-500">Waiting for MK...</span>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-400">${s.learner_name}</h3>
-                <p class="text-xs text-slate-500 mt-1 line-clamp-2">${s.essay_text}</p>
-              </div>
-              <div class="text-[11px] mono text-slate-600">Agent pipeline processing...</div>
-            </div>
-          `;
-        }
-
         return `
           <div onclick="openInspectModal('${s.id}')"
-            class="cursor-pointer rounded-2xl bg-slate-900/90 border ${s.is_live ? 'border-emerald-400 ring-1 ring-emerald-400/30' : s.moderation.flagged ? 'border-amber-500/50 hover:border-amber-400' : 'border-slate-800 hover:border-emerald-500/50'} p-4 flex flex-col justify-between transition group shadow-lg">
+            class="cursor-pointer rounded-2xl bg-slate-900/90 border ${s.moderation.flagged ? 'border-amber-500/60 hover:border-amber-400' : 'border-emerald-500/40 hover:border-emerald-400'} p-4 flex flex-col justify-between transition group shadow-lg">
             <div>
               <div class="flex items-center justify-between gap-2 mb-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[11px] mono px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800">#${s.number}</span>
-                  ${s.is_live ? `<span class="text-[10px] mono font-bold px-2 py-0.5 rounded bg-emerald-500 text-slate-950">LIVE</span>` : ''}
-                </div>
+                <span class="text-[11px] mono px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800">Submission #${s.number} · ${s.submitted_at}</span>
                 ${s.moderation.flagged
                   ? `<span class="text-[10px] mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">⚡ RV SELF-CORRECTED</span>`
                   : `<span class="text-[10px] mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">✓ RV VERIFIED</span>`
@@ -840,7 +777,7 @@
 
               <h3 class="text-sm font-bold text-white group-hover:text-emerald-300 transition">${s.learner_name}</h3>
               <p class="text-[11px] text-slate-400 mb-2">${s.school_or_cohort}</p>
-              <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">${s.essay_text}</p>
+              <p class="text-xs text-slate-300 line-clamp-3 leading-relaxed bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80">${s.essay_text}</p>
             </div>
 
             <div class="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between">
@@ -857,8 +794,8 @@
 
               <div class="flex items-center gap-1.5">
                 ${s.recovery.needs_recovery
-                  ? `<span class="text-[10px] mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">🛟 Recovery Plan</span>`
-                  : `<span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Feedback Sent</span>`
+                  ? `<span class="text-[10px] mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">🛟 3-Step Recovery Sent</span>`
+                  : `<span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-800 text-emerald-300">✓ Passed &amp; Verified</span>`
                 }
               </div>
             </div>
@@ -867,12 +804,52 @@
       }).join('');
     }
 
+    function openCreateAssignmentModal() {
+      document.getElementById('createAssignmentModal').classList.remove('hidden');
+    }
+
+    function closeCreateAssignmentModal() {
+      document.getElementById('createAssignmentModal').classList.add('hidden');
+    }
+
+    async function submitNewAssignment(e) {
+      e.preventDefault();
+      const title = document.getElementById('caTitle').value.trim();
+      const programme_type = document.getElementById('caProg').value.trim();
+      const question_prompt = document.getElementById('caPrompt').value.trim();
+
+      const criteria = [
+        { id: 'C1', name: document.getElementById('c1Name').value.trim(), weight: parseInt(document.getElementById('c1Weight').value || '30'), description: document.getElementById('c1Desc').value.trim() },
+        { id: 'C2', name: document.getElementById('c2Name').value.trim(), weight: parseInt(document.getElementById('c2Weight').value || '30'), description: document.getElementById('c2Desc').value.trim() },
+        { id: 'C3', name: document.getElementById('c3Name').value.trim(), weight: parseInt(document.getElementById('c3Weight').value || '25'), description: document.getElementById('c3Desc').value.trim() },
+        { id: 'C4', name: document.getElementById('c4Name').value.trim(), weight: parseInt(document.getElementById('c4Weight').value || '15'), description: document.getElementById('c4Desc').value.trim() },
+      ];
+
+      const res = await fetch('/api/assignments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          programme_type,
+          question_prompt,
+          rubric_version: `${programme_type} Rubric v1.0`,
+          pass_mark: 50,
+          criteria
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        closeCreateAssignmentModal();
+        loadBatchData(data.batch_id);
+      }
+    }
+
     function openInspectModal(subId) {
       if (!currentBatch) return;
       const s = currentBatch.submissions.find(item => item.id === subId);
       if (!s) return;
 
-      document.getElementById('modalScriptNumber').textContent = `Script #${s.number}`;
+      document.getElementById('modalScriptNumber').textContent = `Submission #${s.number}`;
       document.getElementById('modalLearnerName').textContent = s.learner_name;
       document.getElementById('modalSchool').textContent = `${s.school_or_cohort} · Submitted ${s.submitted_at}`;
       document.getElementById('modalEssayText').textContent = s.essay_text;
@@ -899,7 +876,7 @@
       }
 
       document.getElementById('modalInitialRationale').textContent = `[MK·INITIAL] (${initScore}%): ${s.initial_mark.rationale}`;
-      document.getElementById('modalCorrectionLog').textContent = `[MK·AUDIT] ${s.moderation.correction_log}`;
+      document.getElementById('modalCorrectionLog').textContent = `[RV·AUDIT] ${s.moderation.correction_log}`;
 
       const tbody = document.getElementById('modalCriteriaTable');
       tbody.innerHTML = currentBatch.rubric.criteria.map(c => {
@@ -909,7 +886,7 @@
         return `
           <tr>
             <td class="py-2.5 px-3">
-              <div class="font-semibold text-white">${c.name}</div>
+              <div class="font-semibold text-white">${c.id} · ${c.name}</div>
               <div class="text-[11px] text-slate-400">${c.description}</div>
             </td>
             <td class="py-2.5 px-3 text-center mono text-slate-400">/${c.weight}</td>
@@ -920,7 +897,7 @@
       }).join('');
 
       document.getElementById('modalFeedbackText').textContent = s.recovery.feedback;
-      document.getElementById('modalRecoveryStatus').textContent = s.recovery.needs_recovery ? '🛟 3-Step Remedial Plan Dispatched' : '✓ Enrichment Sent';
+      document.getElementById('modalRecoveryStatus').textContent = s.recovery.needs_recovery ? '🛟 3-Step Remedial Plan Sent' : '✓ Mastery Plan Sent';
       document.getElementById('modalCatchupList').innerHTML = s.recovery.catchup_plan.map(step => `<li>${step}</li>`).join('');
 
       document.getElementById('inspectModal').classList.remove('hidden');
@@ -933,10 +910,11 @@
     function openRubricModal() {
       if (!currentBatch) return;
       document.getElementById('rubricModalTitle').textContent = `${currentBatch.rubric.version} · Total: ${currentBatch.rubric.total_marks} Marks`;
+      document.getElementById('rubricModalPrompt').textContent = currentBatch.rubric.question_prompt || '';
       document.getElementById('rubricModalBody').innerHTML = currentBatch.rubric.criteria.map(c => `
         <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-start justify-between gap-4">
           <div>
-            <div class="text-xs font-bold text-white">${c.name}</div>
+            <div class="text-xs font-bold text-white">${c.id} · ${c.name}</div>
             <div class="text-xs text-slate-400 mt-1">${c.description}</div>
           </div>
           <span class="text-xs mono font-bold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -1014,11 +992,12 @@
     async function resetDemoData() {
       await fetch('/api/batches/reset', { method: 'POST' });
       document.getElementById('liveIncomingBanner').classList.add('hidden');
-      loadBatchData(currentBatchId, false);
+      loadBatchData(currentBatchId);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      loadBatchData('caps_life_sciences', false);
+      initTeacherIdentity();
+      loadBatchData('caps_life_sciences');
       setInterval(pollForLiveLearnerSubmissions, 1800);
     });
   </script>

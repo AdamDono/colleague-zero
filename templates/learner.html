@@ -27,7 +27,7 @@
             🔔
           </div>
           <div>
-            <div class="text-[10px] mono uppercase tracking-wider text-indigo-400 font-bold">New Notification · Colleague Zero</div>
+            <div class="text-[10px] mono uppercase tracking-wider text-indigo-400 font-bold">Colleague Zero · Assessment Complete</div>
             <h4 id="toastTitle" class="text-xs font-bold text-white mt-0.5">Assignment Graded &amp; Moderated!</h4>
             <p id="toastMessage" class="text-xs text-slate-300 mt-1 leading-relaxed"></p>
           </div>
@@ -51,25 +51,14 @@
               Student Account
             </span>
           </div>
-          <p id="learnerHeaderSub" class="text-xs text-slate-400">Logged in as Sibusiso Tshabalala · Orlando West Secondary · Gr 12A</p>
+          <p id="learnerHeaderSub" class="text-xs text-slate-400">Signed in as Learner</p>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5">
-        <!-- Learner Profile Switcher -->
-        <select id="learnerProfileSelect" onchange="changeLearnerProfile(this.value)"
-          class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
-          <option value="Sibusiso Tshabalala|Orlando West Secondary · Gr 12A">👩‍🎓 Sibusiso Tshabalala (Gr 12A)</option>
-          <option value="Amahle Dlamini|Umlazi ComTech · Gr 12B">👩‍🎓 Amahle Dlamini (Gr 12B)</option>
-          <option value="Thabo Mokoena|Orlando West Secondary · Gr 12A">👩‍🎓 Thabo Mokoena (Gr 12A)</option>
-          <option value="Lerato Khumalo|Mamelodi High · Gr 12C">👩‍🎓 Lerato Khumalo (Gr 12C)</option>
-        </select>
-
-        <!-- Programme / Batch Selector -->
+        <!-- Active Assignment Selector (Populated dynamically from Neon DB) -->
         <select id="batchSelector" onchange="switchBatch(this.value)"
           class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
-          <option value="caps_life_sciences">📚 Grade 12 CAPS Life Sciences</option>
-          <option value="seta_project_mgmt">🏢 SETA NQF4 Workplace Risk PoE</option>
         </select>
 
         <!-- Notification Bell -->
@@ -91,7 +80,7 @@
         </div>
 
         <a href="/login" class="text-xs px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition">
-          Switch Account
+          Sign Out / Switch
         </a>
       </div>
     </div>
@@ -104,26 +93,27 @@
       <!-- LEFT COLUMN (6 Cols): Assignment Brief + Submit Assignment -->
       <div class="lg:col-span-6 space-y-5">
 
-        <!-- Card 1: Active Assignment & Rubric Criteria -->
-        <div class="rounded-2xl bg-slate-900/90 border border-slate-800 p-5 space-y-3.5 shadow-xl">
+        <!-- Card 1: Active Assignment Question & Official Rubric -->
+        <div class="rounded-2xl bg-slate-900/90 border border-slate-800 p-5 space-y-4 shadow-xl">
           <div class="flex items-center justify-between">
             <span id="programmeBadge" class="text-[11px] mono uppercase px-2.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold">
-              NSC CAPS · Grade 12 Term 1 Essay
+              Assessment
             </span>
-            <span id="rubricVersionBadge" class="text-xs mono text-slate-400">CAPS Rubric v2.4</span>
+            <span id="rubricVersionBadge" class="text-xs mono text-slate-400">Rubric</span>
           </div>
 
           <div>
-            <h1 id="assignmentTitle" class="text-lg font-bold text-white">Grade 12 CAPS Life Sciences — Meiosis &amp; Genetic Variation</h1>
-            <p class="text-xs text-slate-400 mt-1">
-              Submit your response below. Colleague Zero will automatically assess your work against all 4 rubric criteria, moderate for grading fairness, and generate your personalised recovery plan.
-            </p>
+            <h1 id="assignmentTitle" class="text-lg font-bold text-white">Loading Assignment...</h1>
+            <div class="mt-2.5 p-3.5 rounded-xl bg-slate-950 border border-indigo-500/30">
+              <div class="text-[10px] mono uppercase text-indigo-400 font-bold mb-1">Assignment Prompt / Question:</div>
+              <p id="questionPromptText" class="text-xs text-slate-200 leading-relaxed"></p>
+            </div>
           </div>
 
-          <!-- Rubric Criteria Pills -->
-          <div class="space-y-2 pt-1">
-            <div class="text-[11px] mono uppercase text-slate-400 font-semibold">Official Assessment Rubric Criteria:</div>
-            <div id="rubricCriteriaList" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+          <!-- Rubric Criteria Breakdown -->
+          <div class="space-y-2">
+            <div class="text-[11px] mono uppercase text-slate-400 font-semibold">Grading Rubric Criteria (100 Marks Total):</div>
+            <div id="rubricCriteriaList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
           </div>
         </div>
 
@@ -131,10 +121,8 @@
         <div class="rounded-2xl bg-slate-900/90 border border-indigo-500/30 p-5 space-y-4 shadow-xl">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 class="text-sm font-bold text-white flex items-center gap-2">
-                <span>✍️ Submit Your Assignment</span>
-              </h2>
-              <p class="text-xs text-slate-400">Type your response, upload a document, or load a demo script below.</p>
+              <h2 class="text-sm font-bold text-white">✍️ Your Assignment Submission</h2>
+              <p class="text-xs text-slate-400">Write your answer below or upload a document file (.txt / .md) to submit for grading.</p>
             </div>
 
             <!-- File Upload Button -->
@@ -144,37 +132,32 @@
             </label>
           </div>
 
-          <!-- Quick Demo Presets for Video Recording -->
-          <div class="space-y-1.5">
-            <div class="text-[11px] mono text-slate-400">Quick Demo Scripts (1-Click Load for Video):</div>
-            <div class="flex flex-wrap gap-2">
-              <button type="button" onclick="loadDemoScript('informal')"
-                class="text-xs px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition font-medium">
-                ⚡ ESL / Analogy Script (Triggers Moderator Fix!)
-              </button>
-              <button type="button" onclick="loadDemoScript('struggling')"
-                class="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 transition font-medium">
-                🛟 Struggling Script (Triggers 3-Step Catch-Up Plan)
-              </button>
-              <button type="button" onclick="loadDemoScript('mastery')"
-                class="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition font-medium">
-                🌟 Distinction Script (88%+)
-              </button>
+          <!-- Learner Name / Cohort Verification Bar -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Learner Name</label>
+              <input id="learnerNameInput" type="text" placeholder="Your Full Name"
+                class="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">School / Cohort</label>
+              <input id="learnerSchoolInput" type="text" placeholder="Your Class / Cohort"
+                class="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" />
             </div>
           </div>
 
-          <!-- Essay Textarea -->
+          <!-- Essay Textarea (Starts 100% Empty - Real Input Only) -->
           <div>
-            <textarea id="essayInput" rows="6"
+            <textarea id="essayInput" rows="7"
               class="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 p-3.5 text-xs text-slate-100 leading-relaxed focus:outline-none"
-              placeholder="Write or paste your assignment answer here..."></textarea>
+              placeholder="Write or paste your assignment answer addressing the rubric criteria above..."></textarea>
           </div>
 
           <!-- Live 4-Agent Progress Stepper (Hidden until submit) -->
           <div id="submissionProgressBox" class="hidden rounded-xl bg-slate-950 border border-indigo-500/40 p-3.5 space-y-2.5">
             <div class="flex items-center justify-between text-xs mono">
               <span id="progressStatusText" class="text-indigo-300 font-semibold animate-pulse">Colleague Zero is assessing &amp; moderating your submission...</span>
-              <span class="text-emerald-400">Teacher Tab Notified 🔔</span>
+              <span class="text-emerald-400">Saved to Neon DB 🔔</span>
             </div>
             <div class="grid grid-cols-4 gap-2 text-[10px] mono text-center">
               <div id="step-PL" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">1. [PL] Plan</div>
@@ -186,7 +169,7 @@
 
           <button id="submitBtn" onclick="submitLearnerAssignment()"
             class="w-full py-3.5 px-5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-extrabold text-sm transition shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2">
-            <span>🚀 Submit Assignment to Colleague Zero</span>
+            <span>🚀 Submit Assignment for Grading</span>
           </button>
         </div>
 
@@ -194,11 +177,9 @@
 
       <!-- RIGHT COLUMN (6 Cols): My Moderated Result, Fairness Audit & 3-Step Recovery Plan -->
       <div class="lg:col-span-6 space-y-5">
-
         <div id="resultContainer" class="rounded-2xl bg-slate-900/90 border border-slate-800 p-6 space-y-5 shadow-xl">
-          <!-- Populated dynamically with the learner's latest graded submission -->
+          <!-- Populated dynamically with the learner's real graded submission -->
         </div>
-
       </div>
 
     </div>
@@ -207,69 +188,32 @@
   <script>
     let currentBatchId = 'caps_life_sciences';
     let currentBatch = null;
-    let currentLearnerName = 'Sibusiso Tshabalala';
-    let currentLearnerSchool = 'Orlando West Secondary · Gr 12A';
+    let currentLearnerName = '';
+    let currentLearnerSchool = '';
+    let currentLearnerEmail = '';
     let lastSeenNotifId = 0;
 
     function initLearnerIdentity() {
       const params = new URLSearchParams(window.location.search);
-      const urlName = params.get('name');
-      const urlSchool = params.get('school');
-      const storedName = sessionStorage.getItem('cz_learner_name');
-      const storedSchool = sessionStorage.getItem('cz_learner_school');
+      currentLearnerName = params.get('name') || localStorage.getItem('cz_learner_name') || '';
+      currentLearnerSchool = params.get('school') || localStorage.getItem('cz_learner_school') || '';
+      currentLearnerEmail = params.get('email') || localStorage.getItem('cz_learner_email') || '';
 
-      if (urlName) {
-        currentLearnerName = urlName;
-        currentLearnerSchool = urlSchool || currentLearnerSchool;
-      } else if (storedName) {
-        currentLearnerName = storedName;
-        currentLearnerSchool = storedSchool || currentLearnerSchool;
+      if (currentLearnerName) {
+        localStorage.setItem('cz_learner_name', currentLearnerName);
+        localStorage.setItem('cz_learner_school', currentLearnerSchool);
+        localStorage.setItem('cz_learner_email', currentLearnerEmail);
       }
 
-      sessionStorage.setItem('cz_learner_name', currentLearnerName);
-      sessionStorage.setItem('cz_learner_school', currentLearnerSchool);
-
-      const sel = document.getElementById('learnerProfileSelect');
-      for (let i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value.startsWith(currentLearnerName + '|')) {
-          sel.selectedIndex = i;
-          break;
-        }
-      }
-      document.getElementById('learnerHeaderSub').textContent =
-        `Logged in as ${currentLearnerName} · ${currentLearnerSchool}`;
+      document.getElementById('learnerNameInput').value = currentLearnerName;
+      document.getElementById('learnerSchoolInput').value = currentLearnerSchool;
+      updateHeaderIdentity();
     }
 
-    function changeLearnerProfile(val) {
-      const [name, school] = val.split('|');
-      currentLearnerName = name;
-      currentLearnerSchool = school;
-      sessionStorage.setItem('cz_learner_name', name);
-      sessionStorage.setItem('cz_learner_school', school);
-      document.getElementById('learnerHeaderSub').textContent =
-        `Logged in as ${currentLearnerName} · ${currentLearnerSchool}`;
-      renderLearnerResult();
-    }
-
-    function loadDemoScript(mode) {
-      const textarea = document.getElementById('essayInput');
-      if (currentBatchId === 'seta_project_mgmt') {
-        if (mode === 'informal') {
-          textarea.value = "Risk 1: Server crash during migration -> high probability and huge impact. Backup plan: keep daily snapshots and assign Sipho as risk owner. Risk 2: Scope creep from client asking for extra features -> send formal change request to the project sponsor committee.";
-        } else if (mode === 'struggling') {
-          textarea.value = "In our workplace project there are many risks like load-shedding and delays. We will try our best to finish the project on time and work hard as a team.";
-        } else {
-          textarea.value = "1. Technical Risk: Database migration failure (Probability: High, Impact: Critical). Mitigation: Full staging dry-run 48h prior and automated rollback snapshot owned by Lead DBA. 2. Scope Creep Risk: Unapproved client feature requests. Governance: Enforce formal Change Control Board (CCB) sign-off by Project Sponsor.";
-        }
-      } else {
-        if (mode === 'informal') {
-          textarea.value = "In Prophase 1 the matching chromosome partners from mom and dad hug each other as a bivalent at the chiasma and swap DNA pieces. Then in Metaphase 1 and 2 they line up in a random order on the equator line, shuffling the gene deck. Also meiosis halves the 46 chromosomes down to 23 (haploid) in gametes so the baby gets 46.";
-        } else if (mode === 'struggling') {
-          textarea.value = "Meiosis makes sex cells. In Prophase I chromosomes cross over and share genes. However, I struggle to remember the difference between Metaphase I and Anaphase I. At the end of meiosis there are 4 cells.";
-        } else {
-          textarea.value = "During Prophase I of meiosis, homologous chromosomes pair up to form bivalents. Non-sister chromatids overlap at chiasmata and exchange genetic material via crossing-over. In Metaphase I and II, chromosomes arrange randomly along the equator, driving independent assortment. Finally, meiosis reduces the diploid (2n=46) chromosome number to haploid (n=23) in gametes.";
-        }
-      }
+    function updateHeaderIdentity() {
+      const name = document.getElementById('learnerNameInput').value.trim() || currentLearnerName || 'Guest Learner';
+      const school = document.getElementById('learnerSchoolInput').value.trim() || currentLearnerSchool || 'Cohort';
+      document.getElementById('learnerHeaderSub').textContent = `Signed in as ${name} · ${school}`;
     }
 
     function handleFileUpload(event) {
@@ -289,14 +233,22 @@
       if (!data.ok) return;
 
       currentBatch = data.batch;
+      currentBatchId = currentBatch.id;
+
+      // Populate assignment dropdown dynamically (includes any custom teacher assignments!)
+      const sel = document.getElementById('batchSelector');
+      const prevVal = sel.value || currentBatchId;
+      sel.innerHTML = (data.available_batches || []).map(b =>
+        `<option value="${b.id}" ${b.id === currentBatchId ? 'selected' : ''}>📚 ${b.title} (${b.count} submitted)</option>`
+      ).join('');
+
       if (!isPoll) {
         document.getElementById('programmeBadge').textContent = currentBatch.programme_type;
         document.getElementById('rubricVersionBadge').textContent = currentBatch.rubric.version;
         document.getElementById('assignmentTitle').textContent = currentBatch.title;
+        document.getElementById('questionPromptText').textContent =
+          currentBatch.rubric.question_prompt || currentBatch.default_goal;
         renderRubricCriteria();
-        if (!document.getElementById('essayInput').value.trim()) {
-          loadDemoScript('informal');
-        }
         renderLearnerResult();
       }
 
@@ -304,26 +256,43 @@
     }
 
     function switchBatch(batchId) {
-      document.getElementById('essayInput').value = '';
       fetchLearnerBatch(batchId, false);
     }
 
     function renderRubricCriteria() {
       const container = document.getElementById('rubricCriteriaList');
       container.innerHTML = currentBatch.rubric.criteria.map(c => `
-        <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800/90">
+        <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800/90">
           <div class="flex items-center justify-between text-xs font-bold text-white">
-            <span>${c.id} · ${c.name.replace(/^Criterion \d+:\s*/, '')}</span>
-            <span class="mono text-indigo-400">${c.weight}%</span>
+            <span>${c.id} · ${c.name}</span>
+            <span class="mono text-indigo-400">${c.weight} Marks</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${c.description}</p>
+          <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">${c.description}</p>
         </div>
       `).join('');
     }
 
     async function submitLearnerAssignment() {
+      const nameVal = document.getElementById('learnerNameInput').value.trim();
+      const schoolVal = document.getElementById('learnerSchoolInput').value.trim() || 'Grade 12 / SETA Cohort';
       const essay_text = document.getElementById('essayInput').value.trim();
-      if (!essay_text) return;
+
+      if (!nameVal) {
+        alert('Please enter your Full Name.');
+        document.getElementById('learnerNameInput').focus();
+        return;
+      }
+      if (!essay_text) {
+        alert('Please write or upload your assignment response before submitting.');
+        document.getElementById('essayInput').focus();
+        return;
+      }
+
+      currentLearnerName = nameVal;
+      currentLearnerSchool = schoolVal;
+      localStorage.setItem('cz_learner_name', currentLearnerName);
+      localStorage.setItem('cz_learner_school', currentLearnerSchool);
+      updateHeaderIdentity();
 
       const btn = document.getElementById('submitBtn');
       const progBox = document.getElementById('submissionProgressBox');
@@ -346,9 +315,10 @@
       setStep('MK', 'idle');
       setStep('RV', 'idle');
       setStep('MS', 'idle');
+      document.getElementById('progressStatusText').textContent = 'Colleague Zero [PL → MK → RV → MS] is grading your script...';
 
       setTimeout(() => { setStep('PL', 'done'); setStep('MK', 'working'); }, 350);
-      setTimeout(() => { setStep('MK', 'done'); setStep('RV', 'working'); }, 800);
+      setTimeout(() => { setStep('MK', 'done'); setStep('RV', 'working'); }, 750);
 
       try {
         const res = await fetch('/api/submissions/add', {
@@ -357,6 +327,7 @@
           body: JSON.stringify({
             batch_id: currentBatchId,
             learner_name: currentLearnerName,
+            learner_email: currentLearnerEmail,
             school_or_cohort: currentLearnerSchool,
             essay_text: essay_text
           })
@@ -370,10 +341,12 @@
             currentBatch = data.batch;
             renderLearnerResult(data.submission);
             updateLearnerNotifications(data.notifications || [], true);
+          } else {
+            alert(data.error || 'Submission failed.');
           }
           btn.disabled = false;
           btn.classList.remove('opacity-60');
-        }, 1200);
+        }, 1100);
       } catch (err) {
         console.error(err);
         btn.disabled = false;
@@ -385,16 +358,28 @@
       if (!currentBatch) return;
       const container = document.getElementById('resultContainer');
 
-      // Find latest submission for this learner, or fallback to most recent submission
       let sub = explicitSub;
-      if (!sub) {
+      if (!sub && currentLearnerName) {
         sub = currentBatch.submissions.find(
           s => s.learner_name.toLowerCase() === currentLearnerName.toLowerCase()
-        ) || currentBatch.submissions[0];
+        );
+      }
+      if (!sub && currentBatch.submissions.length > 0) {
+        sub = currentBatch.submissions[0];
       }
 
       if (!sub) {
-        container.innerHTML = `<div class="text-sm text-slate-400">No submissions yet. Submit your assignment on the left to receive instant multi-agent feedback.</div>`;
+        container.innerHTML = `
+          <div class="py-16 text-center space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl mx-auto">
+              📝
+            </div>
+            <h3 class="text-base font-bold text-white">No Submissions Yet for This Assignment</h3>
+            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              Write or upload your assignment response on the left and click <strong>Submit Assignment for Grading</strong>. Colleague Zero's 4 agents (<span class="mono text-indigo-300">PL → MK → RV → MS</span>) will evaluate your work against every rubric criterion and display your moderated grade and 3-step recovery plan here.
+            </p>
+          </div>
+        `;
         return;
       }
 
@@ -409,9 +394,8 @@
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Script #${sub.number}</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Submission #${sub.number}</span>
               <span class="text-xs mono text-slate-400">${sub.submitted_at}</span>
-              ${sub.is_live ? `<span class="text-[10px] mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">LIVE SUBMISSION</span>` : ''}
             </div>
             <h2 class="text-lg font-bold text-white mt-1">${sub.learner_name} — Moderated Result</h2>
             <p class="text-xs text-slate-400">${sub.school_or_cohort}</p>
@@ -424,36 +408,36 @@
               <span class="text-3xl font-extrabold mono ${passed ? 'text-emerald-400' : 'text-rose-400'}">${finalScore}%</span>
             </div>
             <span class="text-[11px] mono px-2 py-0.5 rounded ${passed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}">
-              ${passed ? '✓ COMPETENT / PASSED' : '🛟 RECOVERY REQUIRED'}
+              ${passed ? '✓ PASSED' : '🛟 RECOVERY REQUIRED'}
             </span>
           </div>
         </div>
 
-        <!-- Moderator Self-Correction Fairness Banner (If Flagged) -->
+        <!-- Moderator Audit Box -->
         ${sub.moderation.flagged ? `
           <div class="rounded-xl bg-amber-500/10 border border-amber-500/40 p-4 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-amber-300 mono flex items-center gap-1.5">
-                🛡️ Internal Moderator [RV] Fairness Protection Applied
+                ⚡ Internal Moderator [RV] Self-Correction Applied
               </span>
-              <span class="text-xs mono font-bold text-emerald-400">
+              <span class="text-xs mono font-bold ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
                 ${initScore}% → ${finalScore}% (${delta >= 0 ? '+' + delta : delta}%)
               </span>
             </div>
             <p class="text-xs text-amber-100/90 leading-relaxed">
-              <strong>Why your mark changed:</strong> ${sub.moderation.flag_reason}
+              <strong>Moderator Finding:</strong> ${sub.moderation.flag_reason}
             </p>
             <p class="text-[11px] mono text-emerald-300">
               ✓ ${sub.moderation.correction_log}
             </p>
           </div>
         ` : `
-          <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 flex items-center justify-between">
-            <span class="text-xs text-emerald-300 font-medium flex items-center gap-2">
-              <span>✓</span>
-              <span>Verified by Internal Moderator Agent [RV] against ${currentBatch.rubric.version}</span>
-            </span>
-            <span class="text-[11px] mono text-slate-400">0 Discrepancies</span>
+          <div class="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-emerald-300 font-bold mono">✓ Verified by Internal Moderator [RV]</span>
+              <span class="text-[11px] mono text-slate-400">${currentBatch.rubric.version}</span>
+            </div>
+            <p class="text-xs text-slate-300">${sub.initial_mark.rationale}</p>
           </div>
         `}
 
@@ -469,14 +453,14 @@
         <div class="rounded-xl bg-indigo-950/30 border border-indigo-500/40 p-4 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-indigo-300 mono">
-              ${sub.recovery.needs_recovery ? '🛟 Your 3-Step Remedial Catch-Up Plan' : '🚀 Your 3-Step Mastery & Exam Polish Plan'}
+              ${sub.recovery.needs_recovery ? '🛟 Your Custom 3-Step Remedial Catch-Up Plan' : '🚀 Your 3-Step Mastery & Polish Plan'}
             </span>
             <span id="checklistProgress" class="text-[11px] mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-              Interactive Checklist
+              0 / 3 Completed
             </span>
           </div>
           <div class="space-y-2">
-            ${sub.recovery.catchup_plan.map((step, idx) => `
+            ${sub.recovery.catchup_plan.map(step => `
               <label class="flex items-start gap-3 p-3 rounded-xl bg-slate-950/90 border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition">
                 <input type="checkbox" onchange="updateChecklistProgress()" class="mt-0.5 rounded border-slate-700 text-indigo-500 focus:ring-indigo-500 recovery-check" />
                 <span class="text-xs text-slate-200 leading-relaxed">${step}</span>
@@ -488,20 +472,20 @@
         <!-- Criterion-by-Criterion Breakdown -->
         <div class="space-y-2.5">
           <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mono">
-            📊 Rubric Criterion Breakdown
+            📊 Criterion-by-Criterion Rubric Breakdown
           </div>
           <div class="space-y-2">
             ${currentBatch.rubric.criteria.map(c => {
               const iVal = sub.initial_mark.criteria_scores[c.id] ?? 0;
               const fVal = sub.moderation.corrected_criteria_scores[c.id] ?? iVal;
               const pct = Math.min(100, Math.round((fVal / c.weight) * 100));
-              const boosted = fVal !== iVal;
+              const changed = fVal !== iVal;
               return `
                 <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
                   <div class="flex items-center justify-between text-xs mb-1.5">
-                    <span class="font-semibold text-slate-200">${c.name}</span>
-                    <span class="mono font-bold ${boosted ? 'text-amber-400' : 'text-emerald-400'}">
-                      ${boosted ? `<span class="line-through text-slate-500 mr-1">${iVal}</span>` : ''}${fVal} / ${c.weight}
+                    <span class="font-semibold text-slate-200">${c.id} · ${c.name}</span>
+                    <span class="mono font-bold ${changed ? 'text-amber-400' : 'text-emerald-400'}">
+                      ${changed ? `<span class="line-through text-slate-500 mr-1">${iVal}</span>` : ''}${fVal} / ${c.weight}
                     </span>
                   </div>
                   <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
@@ -520,7 +504,7 @@
       const done = Array.from(checks).filter(c => c.checked).length;
       const badge = document.getElementById('checklistProgress');
       if (badge) {
-        badge.textContent = `${done} / ${checks.length} Steps Completed`;
+        badge.textContent = `${done} / ${checks.length} Completed`;
         if (done === checks.length && checks.length > 0) {
           badge.className = 'text-[11px] mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold';
         }
@@ -579,8 +563,7 @@
     function showToast(title, message) {
       document.getElementById('toastTitle').textContent = title;
       document.getElementById('toastMessage').textContent = message;
-      const toast = document.getElementById('liveToast');
-      toast.classList.remove('hidden');
+      document.getElementById('liveToast').classList.remove('hidden');
       setTimeout(hideToast, 7000);
     }
 
@@ -588,11 +571,9 @@
       document.getElementById('liveToast').classList.add('hidden');
     }
 
-    // Initialize and start background polling so cross-tab updates arrive live
     initLearnerIdentity();
     fetchLearnerBatch('caps_life_sciences', false);
     setInterval(() => fetchLearnerBatch(currentBatchId, true), 2500);
   </script>
 </body>
 </html>
-
