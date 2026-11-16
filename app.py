@@ -1,9 +1,5 @@
 """
 Colleague Zero — Autonomous Multi-Agent Education Colleague
-100% Real Data Mode backed by Neon Serverless PostgreSQL:
-- Real User Registration/Login (`users` table)
-- Real Assignment & Rubric Creation (`batches` table)
-- Real Learner Submissions & Multi-Agent Evaluation (`submissions` & `notifications` tables)
 """
 
 import csv
@@ -12,20 +8,22 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, Response
 
-from agents import evaluate_custom_submission_multi_agent, get_gemini_client
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
+
+from agents import get_gemini_client, run_autonomous_worker_pipeline
+from pace_sync import poll_and_grade_pace_academy_submissions, push_colleague_zero_grade_to_pace_db
 from db import (
+    commit_worker_pipeline_run,
     create_custom_assignment,
     ensure_real_assignments_exist,
     fetch_batch_dict,
     get_db_session,
     get_db_status,
+    list_all_users,
     mark_notifications_read,
     register_or_login_user,
-    save_live_submission,
     wipe_all_submissions_and_users,
 )
-
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "colleague-zero-standalone-key")
@@ -35,22 +33,19 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "colleague-zero-standalone-ke
 @app.route("/login")
 def login_page():
     has_gemini = get_gemini_client() is not None
-    db_status = get_db_status()
-    return render_template("login.html", has_gemini=has_gemini, db_status=db_status)
+    return render_template("login.html", has_gemini=has_gemini)
 
 
 @app.route("/learner")
 def learner_portal():
     has_gemini = get_gemini_client() is not None
-    db_status = get_db_status()
-    return render_template("learner.html", has_gemini=has_gemini, db_status=db_status)
+    return render_template("learner.html", has_gemini=has_gemini)
 
 
 @app.route("/teacher")
 def teacher_portal():
     has_gemini = get_gemini_client() is not None
-    db_status = get_db_status()
-    return render_template("index.html", has_gemini=has_gemini, db_status=db_status)
+    return render_template("index.html", has_gemini=has_gemini)
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -75,11 +70,16 @@ def auth_login():
     return jsonify({"ok": True, "user": user_dict})
 
 
+@app.route("/api/users", methods=["GET"])
+def get_users():
+    return jsonify({
+        "ok": True,
+        "users": list_all_users(),
+    })
+
+
 @app.route("/api/assignments/create", methods=["POST"])
 def create_assignment_route():
-    """
-    Allows the Educator to create a brand-new real assignment & rubric in Neon DB.
-    """
     data = request.get_json(silent=True) or {}
     title = (data.get("title") or "").strip()
     programme_type = (data.get("programme_type") or "CAPS / SETA Assessment").strip()
@@ -119,24 +119,24 @@ def create_assignment_route():
 
 @app.route("/api/batches", methods=["GET"])
 def get_batches():
-    batch_id = request.args.get("batch_id", "caps_life_sciences")
+    batch_id = request.args.get("batch_id") or "caps_life_sciences"
+    poll_and_grade_pace_academy_submissions(batch_id)
     batch_data = fetch_batch_dict(batch_id)
     return jsonify({
         "ok": True,
         "batch": batch_data,
         "available_batches": batch_data["available_batches"],
         "notifications": batch_data["notifications"],
+        "agent_events": batch_data.get("agent_events", []),
         "has_gemini": get_gemini_client() is not None,
-        "db_status": get_db_status(),
     })
 
 
 @app.route("/api/submissions/add", methods=["POST"])
 def add_custom_submission():
     """
-    Triggered when a learner submits an assignment from the Learner Portal (/learner).
-    Runs the 4-agent Planner -> Assessor -> Moderator -> Recovery loop against the
-    active assignment rubric, saves to Neon DB, and notifies both tabs.
+    Runs the 4 autonomous Agent Workers (`PlannerWorker` -> `AssessorWorker` -> `ModeratorWorker` -> `RecoveryWorker`)
+    and commits the submission, worker execution trace (`agent_events`), and notifications in a single fast transaction.
     """
     data = request.get_json(silent=True) or {}
     batch_id = data.get("batch_id", "caps_life_sciences")
@@ -153,7 +153,8 @@ def add_custom_submission():
         return jsonify({"ok": False, "error": "Please write or upload your assignment response."}), 400
 
     next_num = len(batch_data["submissions"]) + 1
-    evaluated = evaluate_custom_submission_multi_agent(
+    evaluated_dict, worker_events = run_autonomous_worker_pipeline(
+        batch_id=batch_data["id"],
         learner_name=learner_name,
         school_or_cohort=school_or_cohort,
         essay_text=essay_text,
@@ -161,10 +162,20 @@ def add_custom_submission():
         number=next_num,
     )
 
-    saved_sub = save_live_submission(
+    saved_sub = commit_worker_pipeline_run(
         batch_id=batch_data["id"],
-        evaluated_dict=evaluated,
+        learner_name=learner_name,
         learner_email=learner_email,
+        school_or_cohort=school_or_cohort,
+        evaluated_dict=evaluated_dict,
+        worker_events=worker_events,
+    )
+    push_colleague_zero_grade_to_pace_db(
+        learner_name=learner_name,
+        learner_email=learner_email,
+        school_or_cohort=school_or_cohort,
+        batch_data=batch_data,
+        evaluated_dict=evaluated_dict,
     )
     updated_batch = fetch_batch_dict(batch_data["id"])
 
@@ -173,6 +184,7 @@ def add_custom_submission():
         "submission": saved_sub,
         "batch": updated_batch,
         "notifications": updated_batch["notifications"],
+        "agent_events": updated_batch.get("agent_events", []),
     })
 
 
@@ -234,5 +246,8 @@ def export_batch_csv(batch_id):
 
 
 if __name__ == "__main__":
+    s = get_db_session()
+    if s is not None:
+        s.close()
     port = int(os.getenv("PORT", 5050))
     app.run(host="0.0.0.0", port=port, debug=True)

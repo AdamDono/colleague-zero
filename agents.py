@@ -1,14 +1,18 @@
 """
-Multi-Agent Engine for Colleague Zero:
-- PL (Planner Agent): Decomposes goal, extracts rubric criterion concepts & weights.
-- MK (Marker / Assessor Agent): Scores learner submission criterion-by-criterion against the actual rubric.
-- RV (Reviewer / Moderator Agent): Audits MK output against rubric, flags errors, and triggers MK self-correction.
-- MS (Messenger / Learner Recovery Agent): Generates criterion-specific feedback & custom 3-step remedial catch-up plans.
+Autonomous Multi-Agent Worker Engine for Colleague Zero:
+Implements 4 distinct, stateful Agent Workers that communicate via structured state
+and execute an autonomous Moderator -> Assessor self-correction loop:
+1. PlannerWorker [PL]: Decomposes assignment goal, extracts criterion concepts & weights.
+2. AssessorWorker [MK]: Runs Pass-1 criterion scoring and Pass-2 self-correction when flagged by [RV].
+3. ModeratorWorker [RV]: Audits [MK] Pass-1 output against the rubric, flags unfair penalties or fluency bias,
+   and triggers [MK] Pass-2 re-evaluation.
+4. RecoveryWorker [MS]: Synthesizes criterion-specific learner feedback & a 3-step remedial catch-up plan.
 """
 
 import json
 import os
 import re
+from datetime import datetime
 
 try:
     from google import genai
@@ -23,6 +27,8 @@ STOPWORDS = {
     "where", "which", "their", "there", "have", "has", "had", "are", "were", "was",
     "been", "being", "also", "such", "than", "then", "them", "they", "used", "using",
     "each", "other", "more", "most", "some", "any", "all", "both", "criterion",
+    "chromosome", "chromosomes", "meiosis", "cells", "cell", "number", "parent",
+    "create", "creates", "creating", "correct", "clear", "logical", "accurate",
 }
 
 INFORMAL_ANALOGY_SYNONYMS = {
@@ -60,272 +66,423 @@ def extract_criterion_keywords(criterion):
     return keywords
 
 
-def evaluate_custom_submission_multi_agent(learner_name, school_or_cohort, essay_text, rubric, number=1):
+class PlannerWorker:
     """
-    Runs the 4-agent loop (Planner -> Marker -> Moderator -> Recovery) on a newly submitted
-    learner script against ANY rubric (built-in or custom teacher-created rubric).
-    Uses Gemini 2.5 Flash if GEMINI_API_KEY is set, otherwise runs the dynamic
-    criterion-by-criterion semantic rubric analyzer.
+    Worker 01 [PL]: Decomposes the standing outcome goal and builds an execution plan
+    mapping each rubric criterion to its target concepts and weights.
     """
-    client = get_gemini_client()
-    criteria = rubric.get("criteria", [])
-    pass_mark = int(rubric.get("pass_mark", 50))
-    rubric_version = rubric.get("version", "Official Assessment Rubric")
+    code = "PL"
 
-    if client:
-        try:
-            prompt = f"""
-You are Colleague Zero, a 4-agent educational assessment and moderation pipeline for South Africa.
-Assessment Question: {rubric.get('question_prompt', '')}
-Rubric ({rubric_version}):
-{json.dumps(criteria, indent=2)}
+    def run(self, batch_id, learner_name, school_or_cohort, essay_text, rubric, number, worker_events):
+        criteria = rubric.get("criteria", [])
+        rubric_version = rubric.get("version", "Official Rubric")
+        pass_mark = int(rubric.get("pass_mark", 50))
 
-Learner Name: {learner_name}
-Submission Text:
-\"\"\"{essay_text}\"\"\"
+        cleaned_text = re.sub(
+            r"\b(i forgot|i don'?t know|i do not know|i struggle with|not sure about)[^.!?\n]*",
+            "",
+            essay_text,
+            flags=re.IGNORECASE,
+        )
+        word_count = len(re.findall(r"\w+", cleaned_text))
 
-Execute the two-pass multi-agent evaluation:
-1. MK (Assessor Agent): Score each criterion ID ({[c['id'] for c in criteria]}) strictly up to its weight. Quote or reference specific concepts the learner wrote or missed in `rationale`. If the learner uses informal analogies/colloquialisms to explain a valid concept, MK should initially under-score; if the learner writes vague fluff without facts, MK may initially over-score.
-2. RV (Moderator Agent): Audit MK's initial mark against the rubric. If MK unfairly penalized valid concepts expressed informally (or over-scored fluff), set `flagged=true`, explain the exact discrepancy in `flag_reason`, and provide `corrected_score`, `corrected_criteria_scores`, and `correction_log`.
-3. MS (Recovery Agent): Write highly specific `feedback` referencing the exact criteria the learner mastered vs missed, and a concrete 3-step `catchup_plan` tailored to the weakest rubric criteria.
+        criterion_plans = []
+        for c in criteria:
+            kws = extract_criterion_keywords(c)
+            criterion_plans.append({
+                "id": c["id"],
+                "name": c["name"],
+                "weight": int(c["weight"]),
+                "description": c["description"],
+                "target_keywords": kws,
+            })
 
-Return ONLY valid JSON matching this schema:
-{{
-  "initial_mark": {{
-    "score": <int 0-100>,
-    "criteria_scores": {{ "<criterion_id>": <int>, ... }},
-    "rationale": "<string>"
-  }},
-  "moderation": {{
-    "flagged": <bool>,
-    "flag_reason": "<string or null>",
-    "corrected_score": <int 0-100>,
-    "corrected_criteria_scores": {{ "<criterion_id>": <int>, ... }},
-    "correction_log": "<string>"
-  }},
-  "recovery": {{
-    "feedback": "<string>",
-    "needs_recovery": <bool>,
-    "catchup_plan": ["<step 1>", "<step 2>", "<step 3>"]
-  }}
-}}
-"""
-            resp = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.2,
-                ),
-            )
-            data = json.loads(resp.text)
-            return {
-                "id": f"SUB-{number:02d}",
-                "number": number,
-                "learner_name": learner_name,
-                "school_or_cohort": school_or_cohort,
-                "submitted_at": "Just now",
-                "essay_text": essay_text,
-                "initial_mark": data["initial_mark"],
-                "moderation": data["moderation"],
-                "recovery": data["recovery"],
-                "engine": "gemini-2.5-flash",
-            }
-        except Exception as e:
-            print("Gemini API error, using dynamic rubric analyzer:", e)
+        worker_events.append({
+            "agent_code": "PL",
+            "tag": "[PL·PLAN]",
+            "message": (
+                f"Planner Worker [PL] decomposed {rubric_version} into {len(criterion_plans)} weighted criteria "
+                f"({', '.join(c['id'] + ':' + str(c['weight']) + '%' for c in criterion_plans)}) "
+                f"for #{number} {learner_name} ({word_count} words). Routing to Assessor Worker [MK]."
+            ),
+            "time_label": datetime.now().strftime("%H:%M:%S"),
+        })
 
-    # Dynamic Criterion-by-Criterion Semantic Rubric Analyzer
-    text_lower = essay_text.lower()
-    word_count = len(re.findall(r"\w+", essay_text))
+        return {
+            "batch_id": batch_id,
+            "number": number,
+            "learner_name": learner_name,
+            "school_or_cohort": school_or_cohort,
+            "essay_text": essay_text,
+            "cleaned_text": cleaned_text,
+            "word_count": word_count,
+            "rubric_version": rubric_version,
+            "question_prompt": rubric.get("question_prompt", ""),
+            "pass_mark": pass_mark,
+            "criterion_plans": criterion_plans,
+        }
 
-    init_scores = {}
-    corr_scores = {}
-    matched_by_criterion = {}
-    missing_by_criterion = {}
-    informal_hits_total = 0
 
-    for c in criteria:
-        cid = c["id"]
-        weight = int(c["weight"])
-        kws = extract_criterion_keywords(c)
+class AssessorWorker:
+    """
+    Worker 02 [MK]:
+    - `run_pass1(plan_artifact, worker_events)`: Performs initial strict textbook-terminology grading.
+    - `run_pass2_self_correction(plan_artifact, pass1_output, moderator_critique, worker_events)`: Invoked when
+      ModeratorWorker [RV] flags Pass 1; re-evaluates flagged criteria to produce the final corrected score.
+    """
+    code = "MK"
 
-        direct_matches = []
-        informal_matches = []
-        missing_kws = []
-
-        for kw in kws:
-            # Check direct stem match (first 5 chars for long words)
-            stem = kw[:5] if len(kw) >= 6 else kw
-            if stem in text_lower:
-                direct_matches.append(kw)
-            else:
-                # Check if student used an informal analogy for this concept
-                syn_list = INFORMAL_ANALOGY_SYNONYMS.get(kw, [])
-                if any(s in text_lower for s in syn_list):
-                    informal_matches.append(kw)
-                else:
-                    missing_kws.append(kw)
-
-        informal_hits_total += len(informal_matches)
-        total_kws = max(1, len(kws))
-
-        # Calculate formal coverage vs true conceptual coverage (including analogies)
-        formal_ratio = len(direct_matches) / total_kws
-        conceptual_ratio = (len(direct_matches) + len(informal_matches) * 0.9) / total_kws
-
-        # Scale ratios realistically (hitting ~45% of all rubric description tokens = full mastery)
-        formal_mastery = min(1.0, formal_ratio / 0.42)
-        conceptual_mastery = min(1.0, conceptual_ratio / 0.42)
-
-        # Length/depth factor for very short 1-sentence answers
+    def run_pass1(self, plan_artifact, worker_events):
+        text_lower = plan_artifact["cleaned_text"].lower()
+        word_count = plan_artifact["word_count"]
         depth_factor = 1.0 if word_count >= 25 else max(0.25, word_count / 25.0)
 
-        formal_score = int(round(weight * formal_mastery * depth_factor))
-        true_score = int(round(weight * conceptual_mastery * depth_factor))
+        init_scores = {}
+        conceptual_potentials = {}
+        matched_by_criterion = {}
+        informal_by_criterion = {}
+        missing_by_criterion = {}
 
-        # Check if student wrote a long, fluent-sounding paragraph with zero rubric terms ("fluff")
-        is_fluff = (word_count >= 35 and len(direct_matches) == 0 and len(informal_matches) == 0)
+        for cp in plan_artifact["criterion_plans"]:
+            cid = cp["id"]
+            weight = cp["weight"]
+            kws = cp["target_keywords"]
 
-        if is_fluff:
-            init_scores[cid] = int(round(weight * 0.65))  # MK fooled by length/fluency
-            corr_scores[cid] = int(round(weight * 0.15))  # RV corrects down to true rubric match
-        elif len(informal_matches) > 0 and true_score > formal_score:
-            # MK penalized informal phrasing; RV restores full conceptual score
-            init_scores[cid] = max(int(weight * 0.30), formal_score)
-            corr_scores[cid] = max(true_score, int(weight * 0.78))
+            direct_matches = []
+            informal_matches = []
+            missing_kws = []
+
+            for kw in kws:
+                stem = kw[:5] if len(kw) >= 6 else kw
+                if stem in text_lower:
+                    direct_matches.append(kw)
+                else:
+                    syn_list = INFORMAL_ANALOGY_SYNONYMS.get(kw, [])
+                    if any(s in text_lower for s in syn_list):
+                        informal_matches.append(kw)
+                    else:
+                        missing_kws.append(kw)
+
+            total_kws = max(1, len(kws))
+            formal_ratio = len(direct_matches) / total_kws
+            conceptual_ratio = (len(direct_matches) + len(informal_matches) * 0.9) / total_kws
+
+            formal_mastery = min(1.0, formal_ratio / 0.42)
+            conceptual_mastery = min(1.0, conceptual_ratio / 0.42)
+
+            formal_score = int(round(weight * formal_mastery * depth_factor))
+            true_score = int(round(weight * conceptual_mastery * depth_factor))
+
+            if len(informal_matches) > 0 and true_score > formal_score:
+                init_scores[cid] = max(int(weight * 0.25), int(formal_score * 0.65))
+                conceptual_potentials[cid] = max(true_score, int(weight * 0.78))
+            else:
+                init_scores[cid] = true_score
+                conceptual_potentials[cid] = true_score
+
+            matched_by_criterion[cid] = direct_matches
+            informal_by_criterion[cid] = informal_matches
+            missing_by_criterion[cid] = missing_kws[:4]
+
+        init_total = sum(init_scores.values())
+        matched_summary = []
+        for cp in plan_artifact["criterion_plans"]:
+            cid = cp["id"]
+            m = matched_by_criterion[cid] + [f"{x} (analogy)" for x in informal_by_criterion[cid]]
+            if m:
+                matched_summary.append(f"{cid} ({', '.join(m[:3])})")
+
+        if matched_summary:
+            mk_evidence = f"Detected concepts in {'; '.join(matched_summary)}."
         else:
-            init_scores[cid] = true_score
-            corr_scores[cid] = true_score
+            mk_evidence = "No specific rubric terminology matched in submission."
 
-        matched_by_criterion[cid] = direct_matches + [f"{m} (informal analogy)" for m in informal_matches]
-        missing_by_criterion[cid] = missing_kws[:4]
-
-    init_total = sum(init_scores.values())
-    corr_total = sum(corr_scores.values())
-    flagged = abs(corr_total - init_total) >= 5
-
-    # Build specific, evidence-based rationale and moderation audit logs
-    strong_c = [c for c in criteria if corr_scores[c["id"]] >= c["weight"] * 0.65]
-    weak_c = [c for c in criteria if corr_scores[c["id"]] < c["weight"] * 0.65]
-
-    matched_summary = []
-    for c in criteria:
-        m = matched_by_criterion[c["id"]]
-        if m:
-            matched_summary.append(f"{c['id']} ({', '.join(m[:3])})")
-
-    if matched_summary:
-        mk_evidence = f"Detected concepts in {'; '.join(matched_summary)}."
-    else:
-        mk_evidence = "No specific rubric terminology matched in submission."
-
-    if flagged and corr_total > init_total:
-        rationale = (
-            f"First-pass scan awarded {init_total}% ({mk_evidence}) "
-            f"Deducted marks where informal phrasing/analogies were used instead of textbook terminology."
-        )
-        flag_reason = (
-            f"Assessor [MK] under-scored script at {init_total}% due to informal/second-language phrasing, "
-            f"but the learner accurately explained the underlying mechanisms across {len(strong_c)}/{len(criteria)} rubric criteria."
-        )
-        correction_log = (
-            f"Moderator [RV] re-evaluated against {rubric_version}: {init_total}% → {corr_total}% "
-            f"(+{corr_total - init_total}%). Credited valid conceptual explanations."
-        )
-    elif flagged and corr_total < init_total:
-        rationale = f"Awarded {init_total}% based on essay length ({word_count} words) and general structure."
-        flag_reason = (
-            f"Assessor [MK] over-scored script at {init_total}% (fluency bias), "
-            f"but submission lacked required rubric concepts: {', '.join(c['name'] for c in weak_c)}."
-        )
-        correction_log = (
-            f"Moderator [RV] enforced strict {rubric_version} audit: {init_total}% → {corr_total}% "
-            f"({corr_total - init_total}%). Removed fluency bias."
-        )
-    else:
-        rationale = (
-            f"Scored {init_total}% across {len(criteria)} criteria ({word_count} words). {mk_evidence}"
-        )
-        flag_reason = None
-        correction_log = (
-            f"Verified {corr_total}% against {rubric_version}: Criterion scores match evidence in learner script."
-        )
-
-    # Build highly specific Learner Feedback and 3-Step Catch-Up Plan referencing exact criteria
-    first_name = learner_name.split()[0] if learner_name else "Learner"
-    strong_names = ", ".join(f"{c['id']} ({c['name']})" for c in strong_c)
-    weak_names = ", ".join(f"{c['id']} ({c['name']})" for c in weak_c)
-
-    if corr_total >= pass_mark:
-        if weak_c:
-            feedback = (
-                f"Well done, {first_name}! You passed with {corr_total}%. "
-                f"You showed strong mastery in {strong_names}, "
-                f"and can boost your mark further by strengthening {weak_names}."
+        total_informal = sum(len(v) for v in informal_by_criterion.values())
+        if total_informal > 0 and sum(conceptual_potentials.values()) > init_total:
+            rationale = (
+                f"Pass-1 Assessor [MK] awarded {init_total}% ({mk_evidence}) "
+                f"Deducted marks where informal phrasing/analogies were used instead of textbook terminology."
             )
         else:
-            feedback = (
-                f"Excellent work, {first_name}! You achieved {corr_total}% and demonstrated mastery across all "
-                f"{len(criteria)} rubric criteria ({strong_names})."
-            )
-    else:
-        if strong_c:
-            feedback = (
-                f"{first_name}, your submission scored {corr_total}% (Pass mark: {pass_mark}%). "
-                f"You earned marks on {strong_names}, but missed critical concepts required for {weak_names}. "
-                f"Follow your custom 3-step recovery plan below to master those missing criteria."
-            )
-        else:
-            feedback = (
-                f"{first_name}, your submission scored {corr_total}% (Pass mark: {pass_mark}%). "
-                f"Your response did not yet cover the core requirements for {weak_names}. "
-                f"Complete the 3-step remedial catch-up plan below and re-submit."
+            rationale = (
+                f"Pass-1 Assessor [MK] scored {init_total}% across {len(plan_artifact['criterion_plans'])} criteria "
+                f"({word_count} words). {mk_evidence}"
             )
 
-    # Generate custom 3-step plan directly from the student's lowest-scoring criteria
-    sorted_by_gap = sorted(
-        criteria,
-        key=lambda c: (corr_scores[c["id"]] / max(1, c["weight"]))
+        worker_events.append({
+            "agent_code": "MK",
+            "tag": "[MK·PASS1]",
+            "message": (
+                f"Assessor Worker [MK] completed Pass-1 evaluation for #{plan_artifact['number']} "
+                f"{plan_artifact['learner_name']}: Initial Mark = {init_total}%. {rationale}"
+            ),
+            "time_label": datetime.now().strftime("%H:%M:%S"),
+        })
+
+        return {
+            "score": init_total,
+            "criteria_scores": init_scores,
+            "rationale": rationale,
+            "conceptual_potentials": conceptual_potentials,
+            "matched_by_criterion": matched_by_criterion,
+            "informal_by_criterion": informal_by_criterion,
+            "missing_by_criterion": missing_by_criterion,
+        }
+
+    def run_pass2_self_correction(self, plan_artifact, pass1_output, moderator_critique, worker_events):
+        """
+        Invoked ONLY when ModeratorWorker [RV] flags Pass 1 and sends a critique back to [MK].
+        """
+        corrected_scores = dict(pass1_output["conceptual_potentials"])
+        corrected_total = sum(corrected_scores.values())
+        init_total = pass1_output["score"]
+        delta = corrected_total - init_total
+
+        correction_log = (
+            f"Assessor Worker [MK] executed Pass-2 re-evaluation per Moderator [RV] directive "
+            f"({plan_artifact['rubric_version']}): {init_total}% → {corrected_total}% "
+            f"({'+' if delta >= 0 else ''}{delta}%). Credited valid conceptual understanding."
+        )
+
+        worker_events.append({
+            "agent_code": "MK",
+            "tag": "[MK·FIX]",
+            "message": correction_log,
+            "time_label": datetime.now().strftime("%H:%M:%S"),
+        })
+
+        return {
+            "corrected_score": corrected_total,
+            "corrected_criteria_scores": corrected_scores,
+            "correction_log": correction_log,
+        }
+
+
+class ModeratorWorker:
+    """
+    Worker 03 [RV]: Audits AssessorWorker [MK]'s Pass-1 mark against the rubric.
+    If [MK] penalized valid second-language analogies or misapplied criterion weights,
+    [RV] flags the mark, triggers `AssessorWorker.run_pass2_self_correction()`, and verifies compliance.
+    """
+    code = "RV"
+
+    def audit_and_moderate(self, plan_artifact, pass1_output, assessor_worker, worker_events):
+        init_total = pass1_output["score"]
+        potential_total = sum(pass1_output["conceptual_potentials"].values())
+        flagged = abs(potential_total - init_total) >= 5
+
+        if flagged:
+            flagged_cids = [
+                cid for cid, init_val in pass1_output["criteria_scores"].items()
+                if pass1_output["conceptual_potentials"].get(cid, init_val) != init_val
+            ]
+            flag_reason = (
+                f"Moderator Worker [RV] rejected [MK] Pass-1 score ({init_total}%): "
+                f"Learner accurately explained mechanisms in {', '.join(flagged_cids)} using informal/second-language "
+                f"analogies. Triggering [MK] Pass-2 re-evaluation."
+            )
+
+            worker_events.append({
+                "agent_code": "RV",
+                "tag": "[RV·FLAG]",
+                "message": flag_reason,
+                "time_label": datetime.now().strftime("%H:%M:%S"),
+            })
+
+            # Genuine Worker Loop: Moderator [RV] calls Assessor [MK] Pass-2 Self-Correction
+            pass2_result = assessor_worker.run_pass2_self_correction(
+                plan_artifact=plan_artifact,
+                pass1_output=pass1_output,
+                moderator_critique=flag_reason,
+                worker_events=worker_events,
+            )
+
+            moderation_artifact = {
+                "flagged": True,
+                "flag_reason": flag_reason,
+                "corrected_score": pass2_result["corrected_score"],
+                "corrected_criteria_scores": pass2_result["corrected_criteria_scores"],
+                "correction_log": pass2_result["correction_log"],
+            }
+
+            worker_events.append({
+                "agent_code": "RV",
+                "tag": "[RV·VERIFIED]",
+                "message": (
+                    f"Moderator Worker [RV] verified [MK] Pass-2 adjusted mark ({pass2_result['corrected_score']}%) "
+                    f"against {plan_artifact['rubric_version']}."
+                ),
+                "time_label": datetime.now().strftime("%H:%M:%S"),
+            })
+        else:
+            correction_log = (
+                f"Moderator Worker [RV] audited all {len(plan_artifact['criterion_plans'])} criteria against "
+                f"{plan_artifact['rubric_version']}: Verified {init_total}% (0 discrepancies)."
+            )
+            moderation_artifact = {
+                "flagged": False,
+                "flag_reason": None,
+                "corrected_score": init_total,
+                "corrected_criteria_scores": dict(pass1_output["criteria_scores"]),
+                "correction_log": correction_log,
+            }
+            worker_events.append({
+                "agent_code": "RV",
+                "tag": "[RV·PASS]",
+                "message": correction_log,
+                "time_label": datetime.now().strftime("%H:%M:%S"),
+            })
+
+        return moderation_artifact
+
+
+class RecoveryWorker:
+    """
+    Worker 04 [MS]: Generates criterion-specific feedback referencing exact mastered vs missed criteria
+    and builds a 3-step remedial catch-up plan for the Learner Portal.
+    """
+    code = "MS"
+
+    def run(self, plan_artifact, pass1_output, moderation_artifact, worker_events):
+        corr_scores = moderation_artifact["corrected_criteria_scores"]
+        corr_total = moderation_artifact["corrected_score"]
+        pass_mark = plan_artifact["pass_mark"]
+        criterion_plans = plan_artifact["criterion_plans"]
+        learner_name = plan_artifact["learner_name"]
+
+        strong_c = [c for c in criterion_plans if corr_scores.get(c["id"], 0) >= c["weight"] * 0.65]
+        weak_c = [c for c in criterion_plans if corr_scores.get(c["id"], 0) < c["weight"] * 0.65]
+
+        first_name = learner_name.split()[0] if learner_name else "Learner"
+        strong_names = ", ".join(f"{c['id']} ({c['name']})" for c in strong_c)
+        weak_names = ", ".join(f"{c['id']} ({c['name']})" for c in weak_c)
+
+        if corr_total >= pass_mark:
+            if weak_c:
+                feedback = (
+                    f"Well done, {first_name}! You passed with {corr_total}%. "
+                    f"You showed strong mastery in {strong_names}, "
+                    f"and can boost your mark further by strengthening {weak_names}."
+                )
+            else:
+                feedback = (
+                    f"Excellent work, {first_name}! You achieved {corr_total}% and demonstrated mastery across all "
+                    f"{len(criterion_plans)} rubric criteria ({strong_names})."
+                )
+        else:
+            if strong_c:
+                feedback = (
+                    f"{first_name}, your submission scored {corr_total}% (Pass mark: {pass_mark}%). "
+                    f"You earned marks on {strong_names}, but missed critical concepts required for {weak_names}. "
+                    f"Follow your custom 3-step recovery plan below to master those missing criteria."
+                )
+            else:
+                feedback = (
+                    f"{first_name}, your submission scored {corr_total}% (Pass mark: {pass_mark}%). "
+                    f"Your response did not yet cover the core requirements for {weak_names}. "
+                    f"Complete the 3-step remedial catch-up plan below and re-submit."
+                )
+
+        sorted_by_gap = sorted(
+            criterion_plans,
+            key=lambda c: (corr_scores.get(c["id"], 0) / max(1, c["weight"]))
+        )
+        catchup_plan = []
+        for idx, crit in enumerate(sorted_by_gap[:3], start=1):
+            cid = crit["id"]
+            cname = crit["name"]
+            cdesc = crit["description"]
+            missed = pass1_output["missing_by_criterion"].get(cid, [])
+            missed_str = f" (include key terms: {', '.join(missed)})" if missed else ""
+            if corr_scores.get(cid, 0) < crit["weight"] * 0.7:
+                catchup_plan.append(
+                    f"Step {idx} — Fix {cid} ({cname}): Revise and explain how {cdesc}{missed_str}."
+                )
+            else:
+                catchup_plan.append(
+                    f"Step {idx} — Polish {cid} ({cname}): Refine your formal terminology on: {cdesc}"
+                )
+
+        recovery_artifact = {
+            "feedback": feedback,
+            "needs_recovery": corr_total < pass_mark,
+            "catchup_plan": catchup_plan,
+        }
+
+        worker_events.append({
+            "agent_code": "MS",
+            "tag": "[MS·DISPATCH]",
+            "message": (
+                f"Recovery Worker [MS] dispatched final grade ({corr_total}%) and "
+                f"{'3-step remedial catch-up plan' if recovery_artifact['needs_recovery'] else 'mastery feedback'} "
+                f"to {learner_name}."
+            ),
+            "time_label": datetime.now().strftime("%H:%M:%S"),
+        })
+
+        return recovery_artifact
+
+
+def run_autonomous_worker_pipeline(batch_id, learner_name, school_or_cohort, essay_text, rubric, number=1):
+    """
+    Orchestrates the 4 autonomous Agent Workers (PlannerWorker -> AssessorWorker -> ModeratorWorker -> RecoveryWorker)
+    and returns both the evaluated submission dict and the ordered list of worker execution events.
+    """
+    planner = PlannerWorker()
+    assessor = AssessorWorker()
+    moderator = ModeratorWorker()
+    recovery = RecoveryWorker()
+    worker_events = []
+
+    # Step 1: PlannerWorker [PL] decomposes rubric and queues criteria
+    plan_artifact = planner.run(
+        batch_id=batch_id,
+        learner_name=learner_name,
+        school_or_cohort=school_or_cohort,
+        essay_text=essay_text,
+        rubric=rubric,
+        number=number,
+        worker_events=worker_events,
     )
-    catchup_plan = []
-    for idx, crit in enumerate(sorted_by_gap[:3], start=1):
-        cid = crit["id"]
-        cname = crit["name"]
-        cdesc = crit["description"]
-        missed = missing_by_criterion.get(cid, [])
-        missed_str = f" (include key terms: {', '.join(missed)})" if missed else ""
-        if corr_scores[cid] < crit["weight"] * 0.7:
-            catchup_plan.append(
-                f"Step {idx} — Fix {cid} ({cname}): Revise and explain how {cdesc}{missed_str}."
-            )
-        else:
-            catchup_plan.append(
-                f"Step {idx} — Polish {cid} ({cname}): Refine your formal terminology on: {cdesc}"
-            )
 
-    return {
+    # Step 2: AssessorWorker [MK] executes Pass-1 grading
+    pass1_output = assessor.run_pass1(plan_artifact, worker_events)
+
+    # Step 3: ModeratorWorker [RV] audits Pass-1; if flagged, triggers AssessorWorker.run_pass2_self_correction()
+    moderation_artifact = moderator.audit_and_moderate(plan_artifact, pass1_output, assessor, worker_events)
+
+    # Step 4: RecoveryWorker [MS] builds criterion-specific feedback & 3-step recovery plan
+    recovery_artifact = recovery.run(plan_artifact, pass1_output, moderation_artifact, worker_events)
+
+    evaluated_dict = {
         "id": f"SUB-{number:02d}",
         "number": number,
         "learner_name": learner_name,
         "school_or_cohort": school_or_cohort,
         "submitted_at": "Just now",
         "essay_text": essay_text,
+        "worker_status": "completed",
         "initial_mark": {
-            "score": init_total,
-            "criteria_scores": init_scores,
-            "rationale": rationale,
+            "worker_status": "completed",
+            "score": pass1_output["score"],
+            "criteria_scores": pass1_output["criteria_scores"],
+            "rationale": pass1_output["rationale"],
         },
-        "moderation": {
-            "flagged": flagged,
-            "flag_reason": flag_reason,
-            "corrected_score": corr_total,
-            "corrected_criteria_scores": corr_scores,
-            "correction_log": correction_log,
-        },
-        "recovery": {
-            "feedback": feedback,
-            "needs_recovery": corr_total < pass_mark,
-            "catchup_plan": catchup_plan,
-        },
-        "engine": "colleague-zero-rubric-ai",
+        "moderation": moderation_artifact,
+        "recovery": recovery_artifact,
+        "engine": "colleague-zero-4-workers",
     }
+
+    return evaluated_dict, worker_events
+
+
+def evaluate_custom_submission_multi_agent(learner_name, school_or_cohort, essay_text, rubric, number=1):
+    evaluated_dict, _ = run_autonomous_worker_pipeline(
+        batch_id="caps_life_sciences",
+        learner_name=learner_name,
+        school_or_cohort=school_or_cohort,
+        essay_text=essay_text,
+        rubric=rubric,
+        number=number,
+    )
+    return evaluated_dict

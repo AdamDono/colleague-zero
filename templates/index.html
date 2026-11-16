@@ -64,7 +64,7 @@
               Autonomous Mode: ON
             </span>
           </div>
-          <p id="teacherHeaderSub" class="text-xs text-slate-400">Signed in as Educator · Neon Serverless Postgres Connected</p>
+          <p id="teacherHeaderSub" class="text-xs text-slate-400">Signed in as Educator · Assessment &amp; Moderation</p>
         </div>
       </div>
 
@@ -106,6 +106,9 @@
           🗑 Clear Submissions
         </button>
 
+        <a href="/teacher/dashboard" class="text-xs px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 hover:text-white border border-emerald-500/30 transition">
+          ← Pace Academy
+        </a>
         <a href="/login" class="text-xs px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition">
           Sign Out
         </a>
@@ -236,7 +239,7 @@
 
         <div class="px-4 py-2.5 bg-slate-900/90 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs mono">
           <div class="flex items-center gap-4">
-            <span id="stepCounter" class="text-slate-300">Listening on Neon DB</span>
+            <span id="stepCounter" class="text-slate-300">Autonomous Listener Active</span>
             <span class="text-emerald-400 font-semibold">Human interventions: 0</span>
           </div>
           <div class="flex items-center gap-4">
@@ -322,8 +325,8 @@
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
-          <h3 class="text-base font-bold text-white">Create New Real Assignment &amp; Rubric</h3>
-          <p class="text-xs text-slate-400">Saved directly to Neon Postgres. Learners can immediately select and submit to this assignment.</p>
+          <h3 class="text-base font-bold text-white">Create New Assignment &amp; Rubric</h3>
+          <p class="text-xs text-slate-400">Learners can immediately select and submit to this assignment.</p>
         </div>
         <button onclick="closeCreateAssignmentModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
       </div>
@@ -403,7 +406,7 @@
         <div class="flex items-center justify-end gap-2 pt-2">
           <button type="button" onclick="closeCreateAssignmentModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Cancel</button>
           <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold">
-            Save Assignment &amp; Rubric to Neon DB
+            Save Assignment &amp; Rubric
           </button>
         </div>
       </form>
@@ -488,7 +491,8 @@
   </div>
 
   <script>
-    let currentBatchId = 'caps_life_sciences';
+    const API_BASE = window.location.pathname.startsWith('/colleague-zero') ? '/colleague-zero' : '';
+    let currentBatchId = '';
     let currentBatch = null;
     let currentFilter = 'all';
     let runTimers = [];
@@ -505,7 +509,7 @@
     async function loadBatchData(batchId = currentBatchId) {
       currentBatchId = batchId;
       clearRunTimers();
-      const res = await fetch(`/api/batches?batch_id=${encodeURIComponent(batchId)}`);
+      const res = await fetch(`${API_BASE}/api/batches?batch_id=${encodeURIComponent(batchId)}`);
       const data = await res.json();
       if (!data.ok) return;
 
@@ -520,7 +524,7 @@
 
       document.getElementById('goalInput').value = currentBatch.default_goal;
       document.getElementById('batchTitleHeading').textContent = `${currentBatch.title} (${currentBatch.submissions.length} Submissions)`;
-      document.getElementById('exportCsvLink').href = `/api/export/${currentBatch.id}.csv`;
+      document.getElementById('exportCsvLink').href = `${API_BASE}/api/export/${currentBatch.id}.csv`;
 
       updateTeacherNotifications(data.notifications || [], false);
       renderSpotlights();
@@ -538,8 +542,20 @@
       const term = document.getElementById('agentTerminal');
       term.innerHTML = '';
       const total = currentBatch.submissions.length;
+      const events = currentBatch.agent_events || [];
       appendLog('READY', '[PL·STANDBY]', `Active Assignment: "${currentBatch.title}" (${currentBatch.rubric.version}).`, 'text-sky-400');
-      if (total === 0) {
+      if (events.length > 0) {
+        const colorMap = {
+          'PL': 'text-sky-400',
+          'MK': 'text-purple-400',
+          'RV': 'text-amber-400',
+          'MS': 'text-emerald-400'
+        };
+        events.forEach(ev => {
+          const col = ev.tag === '[MK·FIX]' ? 'text-emerald-400' : (colorMap[ev.agent_code] || 'text-slate-300');
+          appendLog(ev.time_label || 'DB·LOG', ev.tag, ev.message, col);
+        });
+      } else if (total === 0) {
         appendLog('WAIT', '[C0·LISTEN]', `0 submissions in database. Waiting for a learner to submit on the Learner Portal (/learner)...`, 'text-emerald-400');
       } else {
         const latest = currentBatch.submissions[0];
@@ -551,7 +567,7 @@
     async function pollForLiveLearnerSubmissions() {
       if (!currentBatch) return;
       try {
-        const res = await fetch(`/api/batches?batch_id=${encodeURIComponent(currentBatchId)}`);
+        const res = await fetch(`${API_BASE}/api/batches?batch_id=${encodeURIComponent(currentBatchId)}`);
         const data = await res.json();
         if (!data.ok) return;
 
@@ -825,7 +841,7 @@
         { id: 'C4', name: document.getElementById('c4Name').value.trim(), weight: parseInt(document.getElementById('c4Weight').value || '15'), description: document.getElementById('c4Desc').value.trim() },
       ];
 
-      const res = await fetch('/api/assignments/create', {
+      const res = await fetch(`${API_BASE}/api/assignments/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -970,7 +986,7 @@
     }
 
     async function markTeacherNotifsRead() {
-      await fetch('/api/notifications/read', {
+      await fetch(`${API_BASE}/api/notifications/read`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ batch_id: currentBatchId, role: 'teacher' })
@@ -990,14 +1006,15 @@
     }
 
     async function resetDemoData() {
-      await fetch('/api/batches/reset', { method: 'POST' });
+      await fetch(`${API_BASE}/api/batches/reset`, { method: 'POST' });
       document.getElementById('liveIncomingBanner').classList.add('hidden');
       loadBatchData(currentBatchId);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
       initTeacherIdentity();
-      loadBatchData('caps_life_sciences');
+      const params = new URLSearchParams(window.location.search);
+      loadBatchData(params.get('batch_id') || '');
       setInterval(pollForLiveLearnerSubmissions, 1800);
     });
   </script>

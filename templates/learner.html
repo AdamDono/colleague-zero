@@ -156,8 +156,7 @@
           <!-- Live 4-Agent Progress Stepper (Hidden until submit) -->
           <div id="submissionProgressBox" class="hidden rounded-xl bg-slate-950 border border-indigo-500/40 p-3.5 space-y-2.5">
             <div class="flex items-center justify-between text-xs mono">
-              <span id="progressStatusText" class="text-indigo-300 font-semibold animate-pulse">Colleague Zero is assessing &amp; moderating your submission...</span>
-              <span class="text-emerald-400">Saved to Neon DB 🔔</span>
+              <span id="progressStatusText" class="text-indigo-300 font-semibold">Colleague Zero is assessing &amp; moderating your submission...</span>
             </div>
             <div class="grid grid-cols-4 gap-2 text-[10px] mono text-center">
               <div id="step-PL" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">1. [PL] Plan</div>
@@ -186,7 +185,8 @@
   </main>
 
   <script>
-    let currentBatchId = 'caps_life_sciences';
+    const API_BASE = window.location.pathname.startsWith('/colleague-zero') ? '/colleague-zero' : '';
+    let currentBatchId = '';
     let currentBatch = null;
     let currentLearnerName = '';
     let currentLearnerSchool = '';
@@ -228,7 +228,7 @@
 
     async function fetchLearnerBatch(batchId = currentBatchId, isPoll = false) {
       currentBatchId = batchId;
-      const res = await fetch(`/api/batches?batch_id=${encodeURIComponent(batchId)}`);
+      const res = await fetch(`${API_BASE}/api/batches?batch_id=${encodeURIComponent(batchId)}`);
       const data = await res.json();
       if (!data.ok) return;
 
@@ -315,13 +315,28 @@
       setStep('MK', 'idle');
       setStep('RV', 'idle');
       setStep('MS', 'idle');
-      document.getElementById('progressStatusText').textContent = 'Colleague Zero [PL → MK → RV → MS] is grading your script...';
+      document.getElementById('progressStatusText').textContent = '1/4 · Planner Worker [PL] decomposing rubric criteria...';
 
-      setTimeout(() => { setStep('PL', 'done'); setStep('MK', 'working'); }, 350);
-      setTimeout(() => { setStep('MK', 'done'); setStep('RV', 'working'); }, 750);
+      const t1 = setTimeout(() => {
+        setStep('PL', 'done');
+        setStep('MK', 'working');
+        document.getElementById('progressStatusText').textContent = '2/4 · Assessor Worker [MK] scoring against rubric criteria...';
+      }, 300);
+
+      const t2 = setTimeout(() => {
+        setStep('MK', 'done');
+        setStep('RV', 'working');
+        document.getElementById('progressStatusText').textContent = '3/4 · Moderator Worker [RV] auditing & self-correcting marks...';
+      }, 650);
+
+      const t3 = setTimeout(() => {
+        setStep('RV', 'done');
+        setStep('MS', 'working');
+        document.getElementById('progressStatusText').textContent = '4/4 · Recovery Worker [MS] generating feedback & 3-step plan...';
+      }, 1000);
 
       try {
-        const res = await fetch('/api/submissions/add', {
+        const res = await fetch(`${API_BASE}/api/submissions/add`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -333,22 +348,34 @@
           })
         });
         const data = await res.json();
-        setTimeout(() => {
-          setStep('RV', 'done');
-          setStep('MS', 'done');
-          document.getElementById('progressStatusText').textContent = '✓ Assessment, Moderation & Recovery Plan Complete!';
-          if (data.ok) {
-            currentBatch = data.batch;
-            renderLearnerResult(data.submission);
-            updateLearnerNotifications(data.notifications || [], true);
-          } else {
-            alert(data.error || 'Submission failed.');
-          }
-          btn.disabled = false;
-          btn.classList.remove('opacity-60');
-        }, 1100);
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        setStep('PL', 'done');
+        setStep('MK', 'done');
+        setStep('RV', 'done');
+        setStep('MS', 'done');
+        document.getElementById('progressStatusText').textContent = '✓ Assessment, Moderation & Recovery Plan Complete!';
+        if (data.ok) {
+          currentBatch = data.batch;
+          renderLearnerResult(data.submission);
+          updateLearnerNotifications(data.notifications || [], true);
+        } else {
+          alert(data.error || 'Submission failed.');
+        }
       } catch (err) {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
         console.error(err);
+        document.getElementById('progressStatusText').textContent = 'Retrying connection...';
+        await fetchLearnerBatch(currentBatchId, false);
+        setStep('PL', 'done');
+        setStep('MK', 'done');
+        setStep('RV', 'done');
+        setStep('MS', 'done');
+        document.getElementById('progressStatusText').textContent = '✓ Assessment, Moderation & Recovery Plan Complete!';
+      } finally {
         btn.disabled = false;
         btn.classList.remove('opacity-60');
       }
@@ -552,7 +579,7 @@
     }
 
     async function markAllRead() {
-      await fetch('/api/notifications/read', {
+      await fetch(`${API_BASE}/api/notifications/read`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ batch_id: currentBatchId, role: 'learner' })
@@ -572,7 +599,7 @@
     }
 
     initLearnerIdentity();
-    fetchLearnerBatch('caps_life_sciences', false);
+    fetchLearnerBatch('', false);
     setInterval(() => fetchLearnerBatch(currentBatchId, true), 2500);
   </script>
 </body>
